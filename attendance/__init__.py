@@ -1,0 +1,1 @@
+"""Local face attendance application."""
