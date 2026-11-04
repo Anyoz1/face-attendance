@@ -25,7 +25,7 @@ class FakeArcFace:
     embedding_size = 512
     display_name = 'ArcFace ResNet50'
 
-    def analyze(self, data):
+    def analyze(self, data, *, require_single=False):
         return Face(embedding(512), [.2,.2,.5,.5], 100, 0)
 
 

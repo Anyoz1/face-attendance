@@ -56,7 +56,41 @@ def align_arcface(image, face):
 
 
 class FrameError(ValueError):
-    pass
+    def __init__(self, message, *, box=None):
+        super().__init__(message)
+        self.box = box
+
+
+def select_face(faces, width, height, *, require_single=False):
+    """Choose by position and size before computing a single face embedding.
+
+    A near tie is deliberately left to the people in front of the camera.
+    Never choose based on who is already registered: that could select a
+    bystander instead of the unknown person approaching the terminal.
+    """
+    if faces is None or not len(faces):
+        raise FrameError('Посмотрите в камеру')
+    if require_single and len(faces) != 1:
+        raise FrameError('Для регистрации в кадре должен быть только один человек')
+    if len(faces) == 1:
+        return faces[0].copy()
+    ranked = []
+    for face in faces:
+        x, y, fw, fh = face[:4]
+        if not np.isfinite(face).all() or fw <= 0 or fh <= 0:
+            continue
+        cx, cy = (x + fw / 2) / width, (y + fh / 2) / height
+        if not .20 <= cx <= .80 or not .10 <= cy <= .90:
+            continue
+        distance_squared = (2 * cx - 1) ** 2 + (2 * cy - 1) ** 2
+        score = np.sqrt(fw * fh / (width * height)) / (1 + 2 * distance_squared)
+        ranked.append((float(score), face))
+    if not ranked:
+        raise FrameError('Подойдите ближе к центру камеры')
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    if len(ranked) > 1 and ranked[1][0] >= ranked[0][0] * .80:
+        raise FrameError('Два лица рядом — подойдите ближе к центру камеры')
+    return ranked[0][1].copy()
 
 
 @dataclass
@@ -108,7 +142,7 @@ class Vision:
             self._file_signature, self._files_valid = signature, valid
         return self._files_valid
 
-    def analyze(self, data: bytes) -> Face:
+    def analyze(self, data: bytes, *, require_single=False) -> Face:
         if not self.ready:
             raise FrameError(f'Нет проверенных весов {self.display_name}. Запустите scripts/download_models.py')
         if len(data) > 1_500_000:
@@ -133,29 +167,28 @@ class Vision:
                     self.recognizer = cv2.FaceRecognizerSF.create(str(self.models / self.spec['filename']), '')
             self.detector.setInputSize((small.shape[1], small.shape[0]))
             _, faces = self.detector.detect(small)
-            if faces is None or len(faces) == 0:
-                raise FrameError("Посмотрите в камеру")
-            if len(faces) != 1:
-                raise FrameError("Подходите по одному — в кадре несколько лиц")
-            face = faces[0].copy()
-            face[:14] /= scale
+            if faces is not None:
+                faces = faces.copy()
+                faces[:, :14] /= scale
+            face = select_face(faces, w, h, require_single=require_single)
             x, y, fw, fh = face[:4]
+            box = [float(x / w), float(y / h), float(fw / w), float(fh / h)]
             if min(fw, fh) < 85 or fw * fh / (w * h) < .025:
-                raise FrameError("Подойдите ближе")
+                raise FrameError("Подойдите ближе", box=box)
             if x < 0 or y < 0 or x + fw > w or y + fh > h:
-                raise FrameError("Лицо должно полностью помещаться в кадре")
+                raise FrameError("Лицо должно полностью помещаться в кадре", box=box)
             eyes = face[4:8].reshape(2, 2)
             eye_distance = float(np.linalg.norm(eyes[0] - eyes[1]))
             yaw = float((face[8] - eyes[:, 0].mean()) / max(eye_distance, 1))
             if abs(yaw) > .32:
-                raise FrameError("Посмотрите прямо в камеру")
+                raise FrameError("Посмотрите прямо в камеру", box=box)
             aligned = align_arcface(img, face) if self.backend == 'arcface' else self.recognizer.alignCrop(img, face)
             gray = cv2.cvtColor(aligned, cv2.COLOR_BGR2GRAY)
             sharpness = float(cv2.Laplacian(gray, cv2.CV_64F).var())
             if sharpness < 25:
-                raise FrameError("Изображение размыто — держитесь неподвижно")
+                raise FrameError("Изображение размыто — держитесь неподвижно", box=box)
             if float(gray.mean()) < 35 or float(gray.mean()) > 225:
-                raise FrameError("Нужно более ровное освещение лица")
+                raise FrameError("Нужно более ровное освещение лица", box=box)
             if self.backend == 'arcface':
                 blob = cv2.dnn.blobFromImage(aligned, 1 / 127.5, (112, 112),
                                              (127.5, 127.5, 127.5), swapRB=True, crop=False)
@@ -166,4 +199,4 @@ class Vision:
         norm = np.linalg.norm(feature)
         if feature.shape != (self.embedding_size,) or not np.isfinite(feature).all() or not np.isfinite(norm) or norm < 1e-8:
             raise FrameError("Не удалось обработать лицо")
-        return Face(feature / norm, [float(x / w), float(y / h), float(fw / w), float(fh / h)], sharpness, yaw)
+        return Face(feature / norm, box, sharpness, yaw)

@@ -109,12 +109,12 @@ class Runtime:
                 return {'status': 'waiting', 'message': 'Ожидаем новый кадр камеры'}
             track['hashes'] = (track['hashes'] + [digest])[-12:]
             try:
-                face = self.vision.analyze(data)
+                face = self.vision.analyze(data, require_single=pending is not None)
             except FrameError as exc:
                 confirmation.reset()
                 if pending and self.enrollment_device == device:
                     self.samples = []
-                return {'status': 'adjust', 'message': str(exc)}
+                return {'status': 'adjust', 'message': str(exc), **({'box': exc.box} if exc.box is not None else {})}
 
             if pending:
                 if self.enrollment != pending['id']:

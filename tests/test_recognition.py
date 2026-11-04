@@ -128,7 +128,7 @@ def test_dataset_rejects_capture_leakage_and_counts_bad_probes(tmp_path):
     class FakeCapture:
         embedding_size = 128
 
-        def analyze(self, data):
+        def analyze(self, data, *, require_single=False):
             if data.startswith(b'bad'):
                 raise FrameError('Плохой кадр')
             return SimpleNamespace(embedding=unit(np.ones(128)))

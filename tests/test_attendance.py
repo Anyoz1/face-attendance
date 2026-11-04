@@ -26,7 +26,7 @@ class FakeVision:
     embedding_size = 128
     display_name = 'SFace'
 
-    def analyze(self, data):
+    def analyze(self, data, *, require_single=False):
         if data.startswith(b'bad'):
             raise FrameError('Посмотрите в камеру')
         index = {b'A': 0, b'B': 1, b'C': 2}.get(data[:1], 1)

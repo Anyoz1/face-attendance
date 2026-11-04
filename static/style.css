@@ -128,6 +128,10 @@ progress::-webkit-progress-value{background:var(--green);border-radius:7px}
 .camera-placeholder .empty-icon{background:#294c3b;margin-bottom:10px}
 .viewfinder{position:absolute;inset:15% 20%;border:1px dashed #d6e6c366;border-radius:45%;pointer-events:none}
 .face-box{position:absolute;border:2px solid #d5ecab;border-radius:20%;pointer-events:none;z-index:2}
+.face-box-label{position:absolute;left:50%;bottom:calc(100% + 6px);padding:4px 8px;border-radius:6px;background:#173d36e6;color:#e9f4d9;font-size:10px;white-space:nowrap;transform:translateX(-50%) scaleX(-1)}
+.face-box.adjusting{border-color:#f2bd81}
+.face-box.adjusting .face-box-label{color:#f2bd81}
+.camera-stage.back-camera .face-box-label{transform:translateX(-50%)}
 .terminal-result{padding:23px 17px;text-align:center;min-height:105px;display:flex;flex-direction:column;justify-content:center;align-items:center}
 .terminal-result h2{font-size:16px;line-height:1.5}
 .result-dot{width:7px;height:7px;border-radius:50%;background:#adbaac;margin-bottom:10px}

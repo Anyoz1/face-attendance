@@ -24,7 +24,7 @@ async function pollState() {
     $('networkState').textContent = 'На связи'; $('networkState').className = 'badge success';
     $('sessionTitle').textContent = state.enrollment ? state.enrollment.name : state.active ? state.active.name : 'Камера готова';
     $('modeLabel').textContent = state.enrollment ? 'РЕГИСТРАЦИЯ ЛИЦА' : state.active ? 'ИДЁТ ПЕРЕКЛИЧКА' : 'ТЕРМИНАЛ ПОСЕЩАЕМОСТИ';
-    $('sessionDescription').textContent = state.enrollment ? `Посмотрите прямо в камеру. Сохраним 6 кадров для ${state.model_name}.` : state.active ? `${state.active.group_names?.join(' + ') || state.active.group_name} · Подходите по одному` : state.needs_recapture ? 'Для новой модели нужно обновить лица. На ноутбуке откройте «Люди → Переснять».' : 'Начните проверку или регистрацию на ноутбуке.';
+    $('sessionDescription').textContent = state.enrollment ? `В кадре должны быть только вы. Посмотрите прямо — сохраним 6 кадров для ${state.model_name}.` : state.active ? `${state.active.group_names?.join(' + ') || state.active.group_name} · Подойдите к центру камеры. Рамка покажет, кого проверяем.` : state.needs_recapture ? 'Для новой модели нужно обновить лица. На ноутбуке откройте «Люди → Переснять».' : 'Начните проверку или регистрацию на ноутбуке.';
     $('startCamera').disabled = !state.models_ready;
     if (!state.models_ready) message('Модели распознавания ещё не установлены на ноутбуке', 'error');
   } catch (error) {
@@ -78,12 +78,14 @@ async function capture(version) {
     const result = await readJSON(response);
     if (!running || version !== generation) return;
     $('networkState').textContent = 'На связи'; $('networkState').className = 'badge success';
+    const success = ['present','already','enrolled'].includes(result.status);
     if (result.box) {
       const [x,y,w,h] = result.box; const box = $('faceBox');
       box.style.left = `${100*x}%`; box.style.top = `${100*y}%`; box.style.width = `${100*w}%`; box.style.height = `${100*h}%`; box.hidden = false;
+      box.classList.toggle('adjusting', result.status === 'adjust');
+      $('faceBoxLabel').textContent = success ? 'Готово' : result.status === 'adjust' ? 'Поправьте кадр' : 'Выбрано лицо';
       $('viewfinder').hidden = true;
     } else { $('faceBox').hidden = true; $('viewfinder').hidden = false; }
-    const success = ['present','already','enrolled'].includes(result.status);
     message(result.message, success ? 'success' : ['unknown','other_group','enrollment_conflict'].includes(result.status) ? 'error' : '', result.progress ?? null, success);
     if (result.status === 'enrolled') { delay = 1800; pollState(); }
   } catch (error) {

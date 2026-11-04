@@ -40,7 +40,7 @@ def load_dataset(root, vision, policy):
             if digest in local_hashes or digest in hashes:
                 raise ValueError(f'Повтор одного кадра в регистрации: {path}')
             local_hashes.add(digest)
-            face = vision.analyze(data)
+            face = vision.analyze(data, require_single=True)
             if samples and min(float(sample @ face.embedding) for sample in samples) < policy.enrollment_consistency:
                 raise ValueError(f'Несогласованные лица при регистрации: {path}')
             samples.append(face.embedding)
