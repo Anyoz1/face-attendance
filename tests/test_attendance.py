@@ -26,7 +26,8 @@ class FakeVision:
     def analyze(self, data):
         if data.startswith(b'bad'):
             raise FrameError('Посмотрите в камеру')
-        return Face(vector(0 if data.startswith(b'A') else 1), [.2, .1, .4, .5], 100, 0)
+        index = {b'A': 0, b'B': 1, b'C': 2}.get(data[:1], 1)
+        return Face(vector(index), [.2, .1, .4, .5], 100, 0)
 
 
 class Clock:
@@ -240,6 +241,126 @@ def test_audit_is_admin_only_and_reports_profiles_needing_capture(environment):
     assert phone.get('/api/recognition/audit').status_code == 403
     person_id = store.people()[0]['id']
     assert phone.post(f'/api/people/{person_id}/enrollment').status_code == 403
+
+
+def test_multiple_groups_recognized_in_one_session_with_separate_totals(environment):
+    app, admin, phone = environment
+    store = app.state.runtime.store
+    first = store.add_person('Алия','ИС-201',[vector(0)] * 6,MODEL_ID)
+    second = store.add_person('Бек','ИС-202',[vector(1)] * 6,MODEL_ID)
+    store.add_person('Не пришёл','ИС-202',[vector(3)] * 6,MODEL_ID)
+    store.add_person('Другая группа','ИС-203',[vector(2)] * 6,MODEL_ID)
+    response = admin.post('/api/sessions',json={'name':'Две группы','group_names':['ИС-202','ИС-201','ИС-201']})
+    assert response.status_code == 200, response.text
+    report = response.json()
+    session_id = report['id']
+    assert report['group_names'] == ['ИС-201','ИС-202'] and report['total'] == 3
+    assert phone.get('/api/terminal').json()['active']['group_names'] == ['ИС-201','ИС-202']
+    for prefix, name in [('A','Алия'),('B','Бек')]:
+        for index in range(3):
+            result = frame(app,phone,f'{prefix}-two-groups-{index}'.encode())
+        assert result['status'] == 'present' and result['name'] == name
+    for index in range(3):
+        result = frame(app,phone,f'C-other-group-{index}'.encode())
+    assert result['status'] == 'other_group'
+    assert frame(app,phone,b'B-repeat-1')['status'] == 'recognizing'
+    for index in range(3):
+        result = frame(app,phone,f'B-repeat-{index+2}'.encode())
+    assert result['status'] == 'already'
+    report = admin.get(f'/api/sessions/{session_id}').json()
+    assert report['present'] == 2
+    summaries = {group['name']:group for group in report['groups']}
+    assert summaries['ИС-201'] == {'name':'ИС-201','total':1,'present':1,'unmarked':0}
+    assert summaries['ИС-202'] == {'name':'ИС-202','total':2,'present':1,'unmarked':1}
+    assert {person['person_id']:person['group_name'] for person in report['people']}[second] == 'ИС-202'
+    assert admin.post('/api/sessions',json={'name':'Ещё','group_names':['ИС-203']}).status_code == 409
+    admin.post(f'/api/sessions/{session_id}/close')
+    exported = admin.get(f'/api/sessions/{session_id}/export.csv').text.lstrip('\ufeff')
+    rows = list(csv.reader(io.StringIO(exported),delimiter=';'))
+    assert len(rows) == 4
+    assert any(row[:3] == ['Алия','ИС-201','Присутствует'] for row in rows)
+    assert any(row[:3] == ['Не пришёл','ИС-202','Отсутствует'] for row in rows)
+    filtered = admin.get(f'/api/sessions/{session_id}/export.csv',params={'group_name':'ИС-202'})
+    filtered_rows = list(csv.reader(io.StringIO(filtered.text.lstrip('\ufeff')),delimiter=';'))
+    assert len(filtered_rows) == 3 and all(row[1] == 'ИС-202' for row in filtered_rows[1:])
+    assert admin.get(f'/api/sessions/{session_id}/export.csv',params={'group_name':'ИС-203'}).status_code == 400
+
+
+def test_explicit_empty_groups_creation_persistence_and_permissions(environment):
+    app, admin, phone = environment
+    response = admin.post('/api/groups',json={'name':'  Новая группа  '})
+    assert response.status_code == 200 and response.json() == {'name':'Новая группа','people':0}
+    assert {'name':'Новая группа','people':0} in admin.get('/api/groups').json()['groups']
+    assert {'name':'Новая группа','people':0} in Store(app.state.runtime.store.path).groups()
+    assert admin.post('/api/groups',json={'name':'Новая группа'}).status_code == 409
+    assert admin.post('/api/groups',json={'name':'   '}).status_code == 409
+    assert phone.get('/api/groups').status_code == 403
+    assert phone.post('/api/groups',json={'name':'Чужая группа'}).status_code == 403
+    assert admin.post('/api/sessions',json={'name':'Пустая','group_names':['Новая группа']}).status_code == 409
+    assert app.state.runtime.store.active() is None
+
+
+def test_group_move_keeps_current_and_historical_rosters(environment):
+    app, admin, phone = environment
+    store = app.state.runtime.store
+    person = store.add_person('Алия','Старая',[vector(0)] * 6,MODEL_ID)
+    admin.post('/api/groups',json={'name':'Новая'})
+    session_id = start(admin,'Старая')
+    assert phone.post(f'/api/people/{person}/group',json={'group_name':'Новая'}).status_code == 403
+    assert admin.post(f'/api/people/{person}/group',json={'group_name':'Новая'}).status_code == 200
+    assert store.people()[0]['group_name'] == 'Новая'
+    for index in range(3):
+        result = frame(app,phone,f'A-after-moving-{index}'.encode())
+    assert result['status'] == 'present'
+    report = store.report(session_id)
+    assert report['people'][0]['group_name'] == 'Старая' and report['present'] == 1
+    admin.post(f'/api/sessions/{session_id}/close')
+    next_session = start(admin,'Новая')
+    assert store.report(next_session)['people'][0]['group_name'] == 'Новая'
+    assert store.report(session_id)['group_names'] == ['Старая']
+    assert 'Алия;Старая;Присутствует' in admin.get(f'/api/sessions/{session_id}/export.csv').text
+
+
+@pytest.mark.parametrize('body,code', [
+    ({'name':'Тест','group_names':[]},422),
+    ({'name':'Тест','group_names':['   ']},409),
+    ({'name':'Тест','group_names':['Неизвестная']},409),
+    ({'name':'Тест','group_names':['Основная'],'group_name':'Основная'},400),
+    ({'name':'Тест'},400),
+])
+def test_invalid_group_selection_does_not_start_partial_session(environment, body, code):
+    app, admin, phone = environment
+    app.state.runtime.store.add_person('Алия','Основная',[vector(0)] * 6,MODEL_ID)
+    assert admin.post('/api/sessions',json=body).status_code == code
+    assert app.state.runtime.store.active() is None
+
+
+def test_old_session_migration_preserves_historical_group_and_is_idempotent(tmp_path):
+    import sqlite3
+    database = tmp_path / 'legacy.sqlite3'
+    with sqlite3.connect(database) as db:
+        db.executescript('''
+            CREATE TABLE people(id TEXT PRIMARY KEY,name TEXT NOT NULL,group_name TEXT NOT NULL,
+                created_at TEXT NOT NULL,archived INTEGER NOT NULL DEFAULT 0);
+            CREATE TABLE sessions(id TEXT PRIMARY KEY,name TEXT NOT NULL,group_name TEXT NOT NULL,
+                opened_at TEXT NOT NULL,closed_at TEXT);
+            CREATE TABLE attendance(session_id TEXT NOT NULL,person_id TEXT NOT NULL,name TEXT NOT NULL,
+                present_at TEXT,method TEXT,PRIMARY KEY(session_id,person_id));
+            INSERT INTO people VALUES ('person','Алия','Новая','2026-11-01',0);
+            INSERT INTO sessions VALUES ('old','Старая проверка','Старая','2026-11-01','2026-11-01');
+            INSERT INTO attendance VALUES ('old','person','Алия','2026-11-01','manual');
+        ''')
+    store = Store(database)
+    report = store.report('old')
+    assert report['group_names'] == ['Старая'] and report['present'] == 1
+    assert report['people'][0]['group_name'] == 'Старая'
+    store.add_person('Бек','Вторая',[vector(1)] * 6,MODEL_ID)
+    session_id = store.start('Общая',['Новая','Вторая'])
+    reopened = Store(database)
+    assert reopened.active()['group_names'] == ['Вторая','Новая']
+    assert reopened.report(session_id)['total'] == 2
+    assert 'Вторая + Новая' not in {group['name'] for group in reopened.groups()}
+    assert reopened.report('old')['people'][0]['group_name'] == 'Старая'
 
 
 def test_real_models_detect_and_separate_two_faces(pytestconfig):

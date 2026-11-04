@@ -35,8 +35,18 @@ class PersonInput(BaseModel):
     group_name: str = Field(default='Основная', min_length=1, max_length=80)
 
 
-class SessionInput(PersonInput):
-    pass
+class GroupInput(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+
+
+class MoveInput(BaseModel):
+    group_name: str = Field(min_length=1, max_length=80)
+
+
+class SessionInput(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    group_names: list[str] | None = Field(default=None, min_length=1, max_length=100)
+    group_name: str | None = Field(default=None, min_length=1, max_length=80)
 
 
 class MarkInput(BaseModel):
@@ -249,7 +259,7 @@ def create_app(data_dir=None, vision=None, clock=None):
     @app.get('/api/dashboard', dependencies=[Depends(admin)])
     def dashboard():
         with state.lock:
-            return {'people': store.people(), 'sessions': store.sessions(), 'active': store.active(),
+            return {'people': store.people(), 'groups': store.groups(), 'sessions': store.sessions(), 'active': store.active(),
                     'enrollment': state.pending(), 'samples': len(state.samples),
                     'camera_online': state.clock() - state.last_seen < 5,
                     'enrollment_warning': state.enrollment_warning,
@@ -286,6 +296,30 @@ def create_app(data_dir=None, vision=None, clock=None):
             state.enrollment_warning = None
             state.tracks.clear()
             return store.set_pending(name, group, time.time())
+
+    @app.get('/api/groups', dependencies=[Depends(admin)])
+    def groups():
+        return {'groups': store.groups()}
+
+    @app.post('/api/groups', dependencies=[Depends(admin)])
+    def create_group(body: GroupInput):
+        with state.lock:
+            try:
+                return store.create_group(body.name)
+            except ValueError as exc:
+                raise HTTPException(409, str(exc)) from exc
+
+    @app.post('/api/people/{person_id}/group', dependencies=[Depends(admin)])
+    def move_person(person_id: str, body: MoveInput):
+        with state.lock:
+            pending = state.pending()
+            if pending and pending['person_id'] == person_id:
+                raise HTTPException(409, 'Сначала завершите или отмените повторную съёмку')
+            try:
+                store.move_person(person_id, body.group_name.strip())
+            except ValueError as exc:
+                raise HTTPException(409, str(exc)) from exc
+        return {'ok': True}
 
     @app.post('/api/people/{person_id}/enrollment', dependencies=[Depends(admin)])
     def recapture(person_id: str):
@@ -329,14 +363,17 @@ def create_app(data_dir=None, vision=None, clock=None):
 
     @app.post('/api/sessions', dependencies=[Depends(admin)])
     def start_session(body: SessionInput):
-        name, group = body.name.strip(), body.group_name.strip()
-        if not name or not group:
-            raise HTTPException(400, 'Заполните название и группу')
+        name = body.name.strip()
+        selected_groups = body.group_names if body.group_names is not None else [body.group_name] if body.group_name else []
+        if not name or not selected_groups:
+            raise HTTPException(400, 'Заполните название и выберите группы')
+        if body.group_names is not None and body.group_name is not None:
+            raise HTTPException(400, 'Передайте группы одним списком')
         with state.lock:
             if state.pending():
                 raise HTTPException(409, 'Сначала завершите регистрацию человека')
             try:
-                session_id = store.start(name, group)
+                session_id = store.start(name, selected_groups)
             except ValueError as exc:
                 raise HTTPException(409, str(exc)) from exc
             state.tracks.clear()
@@ -367,18 +404,22 @@ def create_app(data_dir=None, vision=None, clock=None):
         return store.report(session_id)
 
     @app.get('/api/sessions/{session_id}/export.csv', dependencies=[Depends(admin)])
-    def export(session_id: str):
+    def export(session_id: str, group_name: str | None = None):
         result = store.report(session_id)
         if not result:
             raise HTTPException(404, 'Проверка не найдена')
+        if group_name is not None and group_name not in result['group_names']:
+            raise HTTPException(400, 'Этой группы нет в проверке')
         buf = io.StringIO()
         writer = csv.writer(buf, delimiter=';')
         writer.writerow(['Имя', 'Группа', 'Статус', 'Время (UTC)', 'Способ'])
         def safe_cell(value):
             return "'" + value if value.startswith(('=', '+', '-', '@', '\t', '\r', '\n')) else value
         for row in result['people']:
+            if group_name is not None and row['group_name'] != group_name:
+                continue
             status = 'Присутствует' if row['present_at'] else 'Отсутствует' if result['closed_at'] else 'Ещё не отмечен'
-            writer.writerow([safe_cell(row['name']), safe_cell(result['group_name']), status, row['present_at'] or '', row['method'] or ''])
+            writer.writerow([safe_cell(row['name']), safe_cell(row['group_name']), status, row['present_at'] or '', row['method'] or ''])
         return Response(('\ufeff' + buf.getvalue()).encode('utf-8'), media_type='text/csv; charset=utf-8',
                         headers={'Content-Disposition': f'attachment; filename="attendance-{session_id}.csv"'})
 

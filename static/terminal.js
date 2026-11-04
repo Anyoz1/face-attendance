@@ -24,7 +24,7 @@ async function pollState() {
     $('networkState').textContent = 'На связи'; $('networkState').className = 'badge success';
     $('sessionTitle').textContent = state.enrollment ? state.enrollment.name : state.active ? state.active.name : 'Камера готова';
     $('modeLabel').textContent = state.enrollment ? 'РЕГИСТРАЦИЯ ЛИЦА' : state.active ? 'ИДЁТ ПЕРЕКЛИЧКА' : 'ТЕРМИНАЛ ПОСЕЩАЕМОСТИ';
-    $('sessionDescription').textContent = state.enrollment ? 'Посмотрите прямо в камеру. Сохраним 6 качественных кадров.' : state.active ? `${state.active.group_name} · Подходите по одному` : 'Начните проверку или регистрацию на ноутбуке.';
+    $('sessionDescription').textContent = state.enrollment ? 'Посмотрите прямо в камеру. Сохраним 6 качественных кадров.' : state.active ? `${state.active.group_names?.join(' + ') || state.active.group_name} · Подходите по одному` : 'Начните проверку или регистрацию на ноутбуке.';
     $('startCamera').disabled = !state.models_ready;
     if (!state.models_ready) message('Модели распознавания ещё не установлены на ноутбуке', 'error');
   } catch (error) {

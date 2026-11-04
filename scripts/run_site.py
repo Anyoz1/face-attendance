@@ -135,6 +135,7 @@ def main():
     for port in (args.http_port, args.https_port):
         try:
             with socket.socket() as probe:
+                probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 probe.bind(('0.0.0.0', port))
         except OSError as error:
             raise SystemExit(f'Порт {port} недоступен: {error}')
