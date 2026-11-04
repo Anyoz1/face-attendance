@@ -7,28 +7,29 @@ from attendance.evaluation import evaluate
 from attendance.recognition import Confirmation, Gallery, Policy, unit
 
 
-def synthetic_gallery(count=70, seed=23):
+def synthetic_gallery(count=70, seed=23, dimension=128):
     """Synthetic vectors exercise decision rules, not real face accuracy."""
     rng = np.random.default_rng(seed)
-    centers = [unit(rng.normal(size=128)) for _ in range(count)]
+    centers = [unit(rng.normal(size=dimension)) for _ in range(count)]
     rows = []
     for index, center in enumerate(centers):
         for _ in range(6):
-            sample = unit(center + rng.normal(scale=.012, size=128))
+            sample = unit(center + rng.normal(scale=.012, size=dimension))
             rows.append({'id': str(index), 'name': f'Person {index}', 'embedding': sample.tobytes()})
     return rows, centers
 
 
 @pytest.mark.parametrize('size', [50, 70])
-def test_full_roster_known_and_unknown_vectors(size):
-    rows, centers = synthetic_gallery(size)
-    gallery, policy = Gallery(rows), Policy()
+@pytest.mark.parametrize('dimension', [128, 512])
+def test_full_roster_known_and_unknown_vectors(size, dimension):
+    rows, centers = synthetic_gallery(size, dimension=dimension)
+    gallery, policy = Gallery(rows, dimension), Policy()
     assert len(gallery.groups) == size
     for index, center in enumerate(centers):
         assert gallery.identify(center, policy)['id'] == str(index)
     rng = np.random.default_rng(42)
     for _ in range(100):
-        assert gallery.identify(unit(rng.normal(size=128)), policy) is None
+        assert gallery.identify(unit(rng.normal(size=dimension)), policy) is None
 
 
 def test_one_high_scoring_outlier_does_not_identify_someone():
@@ -125,6 +126,8 @@ def test_dataset_rejects_capture_leakage_and_counts_bad_probes(tmp_path):
     from attendance.vision import FrameError
 
     class FakeCapture:
+        embedding_size = 128
+
         def analyze(self, data):
             if data.startswith(b'bad'):
                 raise FrameError('Плохой кадр')

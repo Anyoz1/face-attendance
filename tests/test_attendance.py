@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from attendance.app import create_app
 from attendance.store import Store
-from attendance.vision import Face, FrameError, MODEL_ID, Vision, match
+from attendance.vision import Face, FrameError, SFACE_MODEL_ID as MODEL_ID, Vision, match
 
 
 def vector(index):
@@ -22,6 +22,9 @@ def vector(index):
 
 class FakeVision:
     ready = True
+    model_id = MODEL_ID
+    embedding_size = 128
+    display_name = 'SFace'
 
     def analyze(self, data):
         if data.startswith(b'bad'):
@@ -363,27 +366,33 @@ def test_old_session_migration_preserves_historical_group_and_is_idempotent(tmp_
     assert reopened.report('old')['people'][0]['group_name'] == 'Старая'
 
 
-def test_real_models_detect_and_separate_two_faces(pytestconfig):
+@pytest.mark.parametrize('recognizer', ['sface','arcface'])
+def test_real_models_detect_and_separate_two_faces(pytestconfig, recognizer):
     first_path = pytestconfig.getoption('--face-test-image') or os.environ.get('FACE_TEST_IMAGE')
     other_path = pytestconfig.getoption('--face-test-other-image') or os.environ.get('FACE_TEST_OTHER_IMAGE')
     if not first_path or not other_path:
         pytest.skip('real image paths not supplied')
-    vision = Vision(Path(__file__).resolve().parent.parent / 'models')
+    vision = Vision(Path(__file__).resolve().parent.parent / 'models', recognizer)
+    if not vision.ready:
+        pytest.skip(f'{recognizer} model weights not installed')
     first = vision.analyze(Path(first_path).read_bytes())
     repeated = vision.analyze(Path(first_path).read_bytes())
     other = vision.analyze(Path(other_path).read_bytes())
-    assert first.embedding.shape == (128,)
+    assert first.embedding.shape == (vision.embedding_size,)
     assert float(first.embedding @ repeated.embedding) > .99
     assert float(first.embedding @ other.embedding) < .5
 
 
-def test_real_registration_to_final_report(tmp_path, pytestconfig):
+@pytest.mark.parametrize('recognizer', ['sface','arcface'])
+def test_real_registration_to_final_report(tmp_path, pytestconfig, recognizer):
     import cv2
     first_path = pytestconfig.getoption('--face-test-image')
     other_path = pytestconfig.getoption('--face-test-other-image')
     if not first_path or not other_path:
         pytest.skip('real image paths not supplied')
-    vision = Vision(Path(__file__).resolve().parent.parent / 'models')
+    vision = Vision(Path(__file__).resolve().parent.parent / 'models', recognizer)
+    if not vision.ready:
+        pytest.skip(f'{recognizer} model weights not installed')
     app = create_app(tmp_path, vision, clock=Clock())
     with TestClient(app) as admin, TestClient(app) as phone:
         admin.get('/admin')

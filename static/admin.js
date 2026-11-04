@@ -69,7 +69,7 @@ function renderPeople() {
   const selectedGroup = $('peopleGroupFilter').value;
   const people = dashboard.people.filter(p => (!selectedGroup || p.group_name === selectedGroup) && `${p.name} ${p.group_name}`.toLocaleLowerCase('ru').includes(search));
   $('peopleEmpty').hidden = people.length > 0;
-  $('peopleRows').innerHTML = people.map(p => `<tr><td><div class="person-cell"><span class="avatar">${escapeHTML(initials(p.name))}</span>${escapeHTML(p.name)}</div></td><td>${escapeHTML(p.group_name)}</td><td><span class="badge ${p.samples >= 6 ? 'success' : 'absent'}">${p.samples} кадров</span></td><td class="align-right"><div class="people-actions"><button class="mark-button" data-move="${p.id}">Группа</button><button class="mark-button" data-recapture="${p.id}">Переснять</button><button class="mark-button" data-archive="${p.id}">В архив</button></div></td></tr>`).join('');
+  $('peopleRows').innerHTML = people.map(p => `<tr><td><div class="person-cell"><span class="avatar">${escapeHTML(initials(p.name))}</span>${escapeHTML(p.name)}</div></td><td>${escapeHTML(p.group_name)}</td><td><span class="badge ${p.samples >= 6 ? 'success' : 'absent'}">${p.samples ? `${p.samples} кадров` : 'Нужно переснять'}</span></td><td class="align-right"><div class="people-actions"><button class="mark-button" data-move="${p.id}">Группа</button><button class="mark-button" data-recapture="${p.id}">Переснять</button><button class="mark-button" data-archive="${p.id}">В архив</button></div></td></tr>`).join('');
   $('navCount').textContent = dashboard.people.length;
 }
 function renderGroups() {
@@ -95,8 +95,9 @@ async function refresh() {
   refreshing = true;
   try {
     dashboard = await api('/api/dashboard');
-    $('notice').hidden = dashboard.models_ready;
-    $('notice').textContent = 'Модели распознавания ещё не установлены. Запустите scripts/download_models.py на ноутбуке.';
+    $('modelLabel').textContent = `${dashboard.model_name} · проверка живости отключена`;
+    $('notice').hidden = dashboard.models_ready && !dashboard.needs_recapture;
+    $('notice').textContent = !dashboard.models_ready ? 'Модели распознавания ещё не установлены. Запустите scripts/download_models.py на ноутбуке.' : `${dashboard.model_name}: нужно обновить лица у ${dashboard.needs_recapture} человек. Откройте «Люди» и нажмите «Переснять». Имена, группы и история сохраняются.`;
     $('cameraDot').classList.toggle('online', dashboard.camera_online);
     $('cameraTitle').textContent = dashboard.camera_online ? 'Камера подключена' : 'Подключим Android';
     $('cameraDescription').textContent = dashboard.camera_online ? 'Получаем изображение с терминала. Можно регистрировать людей и проводить проверку.' : 'Телефон снимает лицо и показывает результат. Распознавание работает на ноутбуке.';

@@ -13,7 +13,9 @@ commit `48b10fa505aeb51fbd127fc60a5c660040e823b7`.
 [SFace](https://github.com/opencv/opencv_zoo/tree/48b10fa505aeb51fbd127fc60a5c660040e823b7/models/face_recognition_sface).
 Официальный пример: https://docs.opencv.org/4.x/d0/dd4/tutorial_dnn_face.html.
 
-Загрузка: `uv run --cache-dir /tmp/face-id-uv-cache python scripts/download_models.py`.
+Загрузка основной пары YuNet + ArcFace:
+`uv run --cache-dir /tmp/face-id-uv-cache python scripts/download_models.py`.
+Для SFace: добавьте `--recognizer sface`, для обеих моделей — `--recognizer all`.
 Весов и персональных данных в Git нет.
 
 ## Найденная модель ArcFace
@@ -42,7 +44,20 @@ commit `48b10fa505aeb51fbd127fc60a5c660040e823b7`.
 [InsightFace Model Zoo](https://github.com/deepinsight/insightface/blob/master/python-package/docs/model_zoo.md).
 Веса не отправляются в Git; описание файла сохранено в [arcface.json](arcface.json).
 
-На этом этапе файл доступен для подключения, активной моделью приложения
-остаётся SFace. Шаблоны SFace (128 чисел) нельзя использовать с ArcFace (512).
-Переход требует отдельного подключения модели и повторной съёмки людей;
-подходящие пороги нужно измерить для ArcFace отдельно.
+ArcFace подключена как модель по умолчанию. Настройка `data/vision.json`
+выбирает `arcface` или `sface`; `FACE_RECOGNIZER` переопределяет её на один запуск.
+Шаблоны и настройки разделены по ID модели. Шаблоны SFace (128 чисел) нельзя
+использовать с ArcFace (512), поэтому существующих людей нужно переснять.
+Старые SFace-данные при этом сохраняются для отката; имена, группы и история
+сохраняются. Начальные пороги ArcFace требуют отдельного измерения на группе.
+
+Если нужен перенос с платы или из локальной копии без загрузки набора из сети:
+
+```bash
+uv run --cache-dir /tmp/face-id-uv-cache python scripts/download_models.py \
+  --arcface-source /path/to/arcface.onnx
+```
+
+При отсутствии локального файла загрузчик получает официальный набор buffalo_l,
+читает из архива только `w600k_r50.onnx` и проверяет размер и SHA-256. Ошибочный
+файл не устанавливается, весь набор моделей и его содержимое в проект не распаковываются.

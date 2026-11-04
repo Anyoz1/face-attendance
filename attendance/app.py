@@ -19,8 +19,8 @@ import numpy as np
 import qrcode
 
 from attendance.store import Store
-from attendance.vision import FrameError, MODEL_ID, Vision
-from attendance.recognition import Confirmation, ENROLLMENT_SAMPLES, Gallery, Policy
+from attendance.vision import FrameError, Vision
+from attendance.recognition import Confirmation, ENROLLMENT_SAMPLES, Gallery, Policy, load_policy
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -56,6 +56,8 @@ class MarkInput(BaseModel):
 class Runtime:
     def __init__(self, store, vision, policy=None, clock=None):
         self.store, self.vision = store, vision
+        self.model_id = vision.model_id
+        self.embedding_size = vision.embedding_size
         self.policy = policy or Policy()
         self.clock = clock or time.monotonic
         self.lock = threading.RLock()
@@ -126,7 +128,7 @@ class Runtime:
                 if self.samples and min(float(sample @ face.embedding) for sample in self.samples) < self.policy.enrollment_consistency:
                     self.samples = []
                     return {'status': 'adjust', 'message': 'Лицо изменилось. Начинаем съёмку заново'}
-                others = [row for row in self.store.gallery(MODEL_ID) if row['id'] != pending['person_id']]
+                others = [row for row in self.store.gallery(self.model_id) if row['id'] != pending['person_id']]
                 duplicate = Gallery(others, len(face.embedding)).duplicate(self.samples + [face.embedding], self.policy)
                 if duplicate is not None:
                     self.samples = []
@@ -137,7 +139,7 @@ class Runtime:
                 count = len(self.samples)
                 if count >= ENROLLMENT_SAMPLES:
                     try:
-                        person_id = self.store.complete_enrollment(pending['id'], self.samples, MODEL_ID)
+                        person_id = self.store.complete_enrollment(pending['id'], self.samples, self.model_id)
                     except ValueError as exc:
                         self.samples = []
                         return {'status': 'adjust', 'message': str(exc)}
@@ -151,7 +153,10 @@ class Runtime:
                 return {'status': 'enrolling', 'message': f"{pending['name']}: кадр {count} из {ENROLLMENT_SAMPLES}",
                         'progress': count / ENROLLMENT_SAMPLES, 'box': face.box}
 
-            gallery = Gallery(self.store.gallery(MODEL_ID), len(face.embedding))
+            gallery = Gallery(self.store.gallery(self.model_id), self.embedding_size)
+            if not gallery.groups:
+                confirmation.reset()
+                return {'status': 'setup', 'message': 'Для новой модели пока нет данных лиц. На ноутбуке откройте «Люди → Переснять».', 'box': face.box}
             candidate = gallery.identify(face.embedding, self.policy)
             if candidate is None:
                 confirmation.reset()
@@ -179,7 +184,8 @@ def create_app(data_dir=None, vision=None, clock=None):
             json.dump({'admin': secrets.token_urlsafe(32), 'terminal': secrets.token_urlsafe(32)}, f)
     tokens = json.loads(secrets_file.read_text())
     store = Store(data_dir / 'attendance.sqlite3')
-    state = Runtime(store, vision or Vision(ROOT / 'models'), Policy.load(data_dir / 'recognition.json'), clock)
+    engine = vision or Vision.from_settings(ROOT / 'models', data_dir)
+    state = Runtime(store, engine, load_policy(data_dir, engine.model_id), clock)
     app = FastAPI(title='Перекличка', docs_url=None, redoc_url=None, openapi_url=None)
     app.state.runtime = state
     app.mount('/static', StaticFiles(directory=ROOT / 'static'), name='static')
@@ -254,12 +260,16 @@ def create_app(data_dir=None, vision=None, clock=None):
 
     @app.get('/api/health')
     def health():
-        return {'ok': True, 'models_ready': state.vision.ready, 'model': MODEL_ID, 'liveness': False}
+        return {'ok': True, 'models_ready': state.vision.ready, 'model': state.model_id,
+                'model_name': state.vision.display_name, 'embedding_size': state.embedding_size, 'liveness': False}
 
     @app.get('/api/dashboard', dependencies=[Depends(admin)])
     def dashboard():
         with state.lock:
-            return {'people': store.people(), 'groups': store.groups(), 'sessions': store.sessions(), 'active': store.active(),
+            people = store.people(state.model_id)
+            return {'people': people, 'groups': store.groups(), 'sessions': store.sessions(), 'active': store.active(),
+                    'model': state.model_id, 'model_name': state.vision.display_name,
+                    'needs_recapture': sum(person['samples'] < ENROLLMENT_SAMPLES for person in people),
                     'enrollment': state.pending(), 'samples': len(state.samples),
                     'camera_online': state.clock() - state.last_seen < 5,
                     'enrollment_warning': state.enrollment_warning,
@@ -339,7 +349,7 @@ def create_app(data_dir=None, vision=None, clock=None):
     @app.get('/api/recognition/audit', dependencies=[Depends(admin)])
     def recognition_audit():
         with state.lock:
-            gallery = Gallery(store.gallery(MODEL_ID))
+            gallery = Gallery(store.gallery(state.model_id), state.embedding_size)
             result = gallery.audit(state.policy)
             available = {person['id'] for person in gallery.groups}
             result['unusable'] = [{'id': person['id'], 'name': person['name']} for person in store.people() if person['id'] not in available]
@@ -428,6 +438,8 @@ def create_app(data_dir=None, vision=None, clock=None):
         with state.lock:
             pending = state.pending()
             return {'active': store.active(), 'enrollment': pending,
+                    'model': state.model_id, 'model_name': state.vision.display_name,
+                    'needs_recapture': sum(person['samples'] < ENROLLMENT_SAMPLES for person in store.people(state.model_id)),
                     'samples': len(state.samples), 'models_ready': state.vision.ready, 'liveness': False}
 
     @app.post('/api/frames')

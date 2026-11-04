@@ -81,12 +81,13 @@ class Store:
         finally:
             db.close()
 
-    def people(self):
+    def people(self, model=None):
         with self.connect() as db:
             return [dict(r) for r in db.execute("""
-                SELECT p.*, (SELECT count(*) FROM templates t WHERE t.person_id=p.id) samples
+                SELECT p.*, (SELECT count(*) FROM templates t WHERE t.person_id=p.id AND (? IS NULL OR t.model=?)) samples,
+                       (SELECT count(*) FROM templates t WHERE t.person_id=p.id) total_samples
                 FROM people p WHERE archived=0 ORDER BY group_name, name
-            """)]
+            """, (model, model))]
 
     def groups(self):
         with self.connect() as db:
@@ -169,7 +170,7 @@ class Store:
                 person = db.execute('SELECT id FROM people WHERE id=? AND archived=0', (person_id,)).fetchone()
                 if not person:
                     raise ValueError('Запись человека больше недоступна')
-                db.execute('DELETE FROM templates WHERE person_id=?', (person_id,))
+                db.execute('DELETE FROM templates WHERE person_id=? AND model=?', (person_id, model))
             else:
                 db.execute('INSERT INTO people(id,name,group_name,created_at) VALUES (?,?,?,?)',
                            (person_id, enrollment['name'], enrollment['group_name'], now()))

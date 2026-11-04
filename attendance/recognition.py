@@ -40,12 +40,31 @@ class Policy:
             raise ValueError('Некорректное подтверждение по времени')
 
     @classmethod
-    def load(cls, path: Path):
+    def load(cls, path: Path, default=None):
         if path.exists():
             return cls(**json.loads(path.read_text()))
-        policy = cls()
+        policy = default or cls()
         path.write_text(json.dumps(asdict(policy), indent=2) + '\n')
         return policy
+
+
+def policy_path(data_dir, model_id):
+    return Path(data_dir) / f'recognition-{model_id}.json'
+
+
+def load_policy(data_dir, model_id):
+    path = policy_path(data_dir, model_id)
+    default = Policy()
+    if model_id.startswith('arcface-w600k-r50-'):
+        # Initial ArcFace settings follow the original project's acceptance
+        # range. They still require validation on independent group captures.
+        default = Policy(threshold=.52, support_threshold=.47, centroid_threshold=.47,
+                         continuity_threshold=.45, enrollment_consistency=.55)
+    elif model_id == 'sface-2021dec-v1' and not path.exists():
+        legacy = Path(data_dir) / 'recognition.json'
+        if legacy.exists():
+            default = Policy(**json.loads(legacy.read_text()))
+    return Policy.load(path, default)
 
 
 def unit(vector):

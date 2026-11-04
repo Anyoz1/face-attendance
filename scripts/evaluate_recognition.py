@@ -4,6 +4,7 @@ import argparse
 from dataclasses import asdict, replace
 import hashlib
 import json
+import os
 from pathlib import Path
 import sys
 
@@ -11,8 +12,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from attendance.evaluation import evaluate
-from attendance.recognition import ENROLLMENT_SAMPLES, Gallery, Policy
-from attendance.vision import FrameError, MODEL_ID, Vision
+from attendance.recognition import ENROLLMENT_SAMPLES, Gallery, Policy, load_policy, policy_path
+from attendance.vision import FrameError, Vision
 
 EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp'}
 
@@ -76,27 +77,45 @@ def load_dataset(root, vision, policy):
                 covered.add(expected)
     if not probes:
         raise ValueError('Нет проверочных изображений в probes')
-    return Gallery(rows), probes, errors, identities - covered
+    return Gallery(rows, vision.embedding_size), probes, errors, identities - covered
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--dataset', type=Path, required=True)
-    parser.add_argument('--policy', type=Path, default=ROOT / 'data' / 'recognition.json')
+    parser.add_argument('--policy', type=Path)
+    parser.add_argument('--recognizer', choices=('arcface','sface'))
     parser.add_argument('--report', type=Path, required=True)
     parser.add_argument('--sweep', action='store_true', help='Compare candidate thresholds; do not apply them')
     args = parser.parse_args()
-    if args.report.resolve() in {args.policy.resolve(), (ROOT / 'data' / 'attendance.sqlite3').resolve()}:
+    data_dir = ROOT / 'data'
+    if args.recognizer:
+        vision = Vision(ROOT / 'models', args.recognizer)
+    else:
+        settings_path = data_dir / 'vision.json'
+        backend = os.environ.get('FACE_RECOGNIZER') or (json.loads(settings_path.read_text())['recognizer'] if settings_path.exists() else 'arcface')
+        vision = Vision(ROOT / 'models', backend)
+    selected_policy = args.policy or policy_path(data_dir, vision.model_id)
+    if args.report.resolve() in {selected_policy.resolve(), (data_dir / 'recognition.json').resolve(), (data_dir / 'attendance.sqlite3').resolve()}:
         parser.error('Отчёт должен сохраняться отдельно от настроек и базы')
-    policy = Policy(**json.loads(args.policy.read_text())) if args.policy.exists() else Policy()
-    vision = Vision(ROOT / 'models')
+    if args.policy:
+        policy = Policy(**json.loads(args.policy.read_text()))
+    else:
+        # Use a disposable directory when the live model policy has not been
+        # created, so evaluation never writes to the running app's settings.
+        if selected_policy.exists():
+            policy = Policy(**json.loads(selected_policy.read_text()))
+        else:
+            import tempfile
+            with tempfile.TemporaryDirectory() as temporary:
+                policy = load_policy(Path(temporary), vision.model_id)
     if not vision.ready:
         parser.error('Сначала установите модели')
     try:
         gallery, probes, errors, uncovered = load_dataset(args.dataset, vision, policy)
     except (ValueError, FrameError) as exc:
         parser.error(str(exc))
-    report = {'model': MODEL_ID, 'gallery_people': len(gallery.groups), 'policy': asdict(policy),
+    report = {'model': vision.model_id, 'embedding_size': vision.embedding_size, 'gallery_people': len(gallery.groups), 'policy': asdict(policy),
               'metrics': evaluate(gallery, probes, policy), 'unusable_images': errors,
               'people_without_probes': sorted(uncovered),
               'scope': 'Frame-level identification on this capture set; no liveness evaluation.',

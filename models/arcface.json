@@ -18,5 +18,5 @@
   "model_documentation": "https://github.com/deepinsight/insightface/blob/master/python-package/docs/model_zoo.md",
   "upstream_model_terms": "non-commercial research; see upstream model documentation",
   "opencv_dnn_load_and_inference_verified": true,
-  "selection": "Available locally. The running application still selects SFace in attendance/vision.py."
+  "selection": "Default recognizer. Select arcface or sface using data/vision.json; templates and policies are isolated per model."
 }
