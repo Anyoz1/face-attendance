@@ -1,0 +1,22 @@
+{
+  "name": "InsightFace ArcFace w600k_r50",
+  "architecture": "ResNet50",
+  "training_dataset": "WebFace600K",
+  "package": "buffalo_l / buffalo_m",
+  "canonical_filename": "w600k_r50.onnx",
+  "local_filename": "arcface.onnx",
+  "sha256": "4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43",
+  "size_bytes": 174383860,
+  "input": {"name": "input.1", "shape": [null, 3, 112, 112], "dtype": "float32", "color": "RGB"},
+  "preprocessing": {"mean": 127.5, "std": 127.5, "alignment": "ArcFace five-point alignment, 112x112"},
+  "output": {"name": "683", "embedding_size": 512, "normalization": "L2 after inference"},
+  "onnx_producer": "pytorch 1.9",
+  "parameter_count": 43590976,
+  "source": "Local Orange Pi project copy; identical SHA-256 verified on the Orange Pi 5B over SSH",
+  "upstream_release": "https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip",
+  "checksum_reference": "https://github.com/photoprism/photoprism/blob/develop/scripts/dist/download-arcface.sh",
+  "model_documentation": "https://github.com/deepinsight/insightface/blob/master/python-package/docs/model_zoo.md",
+  "upstream_model_terms": "non-commercial research; see upstream model documentation",
+  "opencv_dnn_load_and_inference_verified": true,
+  "selection": "Available locally. The running application still selects SFace in attendance/vision.py."
+}
