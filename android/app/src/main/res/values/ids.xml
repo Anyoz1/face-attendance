@@ -1,0 +1,9 @@
+<resources>
+    <item name="home_action" type="id"/>
+    <item name="nav_home" type="id"/><item name="nav_people" type="id"/>
+    <item name="nav_groups" type="id"/><item name="nav_history" type="id"/>
+    <item name="open_settings" type="id"/><item name="navigate_back" type="id"/>
+    <item name="people_search" type="id"/><item name="history_search" type="id"/>
+    <item name="report_search" type="id"/><item name="camera_preview" type="id"/>
+    <item name="camera_count" type="id"/><item name="registration_progress" type="id"/>
+</resources>

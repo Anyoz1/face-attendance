@@ -1,12 +1,23 @@
 <resources>
-    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+    <style name="AppThemeBase" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
-        <item name="android:colorAccent">#206A50</item>
+        <item name="android:colorAccent">#4366ED</item>
+        <item name="android:alertDialogTheme">@style/RollmarkDialogTheme</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:statusBarColor">#F2F6F0</item>
-        <item name="android:navigationBarColor">#F2F6F0</item>
+        <item name="android:statusBarColor">#F5F7FB</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
         <item name="android:windowActionModeOverlay">true</item>
-        <item name="android:windowBackground">#F2F6F0</item>
-        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowBackground">#F5F7FB</item>
     </style>
+    <style name="RollmarkDialogTheme" parent="android:style/Theme.Material.Light.Dialog.Alert">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#4366ED</item>
+        <item name="android:windowBackground">@drawable/bg_dialog</item>
+        <item name="android:buttonBarButtonStyle">@style/RollmarkDialogButton</item>
+    </style>
+    <style name="RollmarkDialogButton" parent="android:style/Widget.Material.Button.Borderless.Colored">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:minHeight">48dp</item>
+    </style>
+    <style name="AppTheme" parent="AppThemeBase"/>
 </resources>
