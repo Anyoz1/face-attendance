@@ -1,0 +1,14 @@
+{
+  "recognizer": "arcface-w600k-r50-4c06341c33c2-v1",
+  "embedding_size": 512,
+  "source_sha256": {
+    "yunet.onnx": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
+    "arcface.onnx": "4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43"
+  },
+  "detector_input": 320,
+  "detector_change": "Only static input/output shape metadata is changed from 640 to 320. Original detector weights are unchanged.",
+  "assets_sha256": {
+    "arcface.onnx": "4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43",
+    "yunet320.onnx": "cc734b20cba17f93fccfb8383fb5313c991ace309c9b78c276509fe45a6a759e"
+  }
+}

@@ -18,3 +18,11 @@ models/*.download
 *.sqlite
 *.sqlite3
 *.sqlite3-*
+android/.gradle/
+android/**/build/
+android/local.properties
+android/app/src/main/assets/models/*.onnx
+android/app/src/androidTest/assets/fixtures/
+*.apk
+*.jks
+*.keystore

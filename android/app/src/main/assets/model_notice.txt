@@ -1,0 +1,11 @@
+Face detection: OpenCV Zoo YuNet, face_detection_yunet_2023mar.onnx (MIT).
+https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet
+
+Face recognition: InsightFace ArcFace w600k_r50.onnx, ResNet50@WebFace600K.
+Pretrained InsightFace recognition weights are provided for non-commercial research.
+https://github.com/deepinsight/insightface/tree/master/python-package
+
+Inference: Microsoft ONNX Runtime (MIT).
+https://github.com/microsoft/onnxruntime
+
+The original model checksums and the detector shape-only conversion are recorded in models/info.json.
