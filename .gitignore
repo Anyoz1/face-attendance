@@ -26,3 +26,24 @@ android/app/src/androidTest/assets/fixtures/
 *.apk
 *.jks
 *.keystore
+# Camera captures and biometric exports must stay outside Git.
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.bmp
+*.heic
+*.mp4
+*.mov
+*.db
+*.db-*
+*.npy
+*.npz
+*.pkl
+*.pickle
+*.csv
+*.tsv
+*.jsonl
+**/captures/
+**/photos/
+**/screenshots/
