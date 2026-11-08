@@ -78,6 +78,38 @@ public final class AttendanceStore extends SQLiteOpenHelper {
         }finally{db.endTransaction();}
     }
     public void closeSession(String id){getWritableDatabase().execSQL("UPDATE sessions SET closed_at=? WHERE id=? AND closed_at IS NULL",new Object[]{System.currentTimeMillis(),id});}
+    /** Delete a completed check and its snapshots atomically; people and face templates stay. */
+    public void deleteSession(String id) {
+        if (id == null || id.isEmpty()) throw new IllegalArgumentException("Не выбрана проверка");
+        SQLiteDatabase db = getWritableDatabase();
+        db.beginTransaction();
+        try {
+            try (Cursor c = db.rawQuery("SELECT closed_at FROM sessions WHERE id=?", new String[]{id})) {
+                if (!c.moveToFirst()) throw new IllegalArgumentException("Проверка уже удалена");
+                if (c.isNull(0)) throw new IllegalArgumentException("Сначала завершите текущую проверку");
+            }
+            deleteSessionDetails(db, "session_id=?", new String[]{id});
+            if (db.delete("sessions", "id=? AND closed_at IS NOT NULL", new String[]{id}) != 1)
+                throw new IllegalStateException("Не удалось удалить проверку");
+            db.setTransactionSuccessful();
+        } finally { db.endTransaction(); }
+    }
+    /** Clear completed history only, including its attendance, group snapshots and audit rows. */
+    public int clearHistory() {
+        SQLiteDatabase db = getWritableDatabase();
+        db.beginTransaction();
+        try {
+            deleteSessionDetails(db, "session_id IN (SELECT id FROM sessions WHERE closed_at IS NOT NULL)", null);
+            int removed = db.delete("sessions", "closed_at IS NOT NULL", null);
+            db.setTransactionSuccessful();
+            return removed;
+        } finally { db.endTransaction(); }
+    }
+    private static void deleteSessionDetails(SQLiteDatabase db, String where, String[] args) {
+        db.delete("audit", where, args);
+        db.delete("attendance", where, args);
+        db.delete("session_groups", where, args);
+    }
     public List<Entry> entries(String session){List<Entry> out=new ArrayList<>();try(Cursor c=getReadableDatabase().rawQuery("SELECT person_id,name,group_name,present_at,method,auto_blocked FROM attendance WHERE session_id=? ORDER BY group_name,name",new String[]{session})){while(c.moveToNext()){Entry e=new Entry();e.id=c.getString(0);e.name=c.getString(1);e.group=c.getString(2);e.present=c.isNull(3)?0:c.getLong(3);e.method=c.getString(4);e.blocked=c.getInt(5)!=0;out.add(e);}}return out;}
     public boolean mark(String session,String person,boolean present,boolean manual){
         SQLiteDatabase db=getWritableDatabase();db.beginTransaction();try{

@@ -273,6 +273,10 @@ public final class DesignTest {
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
         scenario.onActivity(a -> click(a.findViewById(R.id.report_more)));
         node("Сохранить CSV");
+        android.view.accessibility.AccessibilityNodeInfo menu =
+            InstrumentationRegistry.getInstrumentation().getUiAutomation().getRootInActiveWindow();
+        assertTrue("An open check cannot be deleted",
+            menu.findAccessibilityNodeInfosByText("Удалить проверку").isEmpty());
         tap("Завершить проверку");
         tap("Отмена");
         assertNotNull(isolated.active());
@@ -282,6 +286,35 @@ public final class DesignTest {
         assertNull(isolated.active());
         assertEquals(2, isolated.sessions().size());
         screenshot("12-ended");
+        scenario.onActivity(a -> click(a.findViewById(R.id.report_more)));
+        tap("Удалить проверку");
+        tap("Отмена");
+        assertEquals(2, isolated.sessions().size());
+        scenario.onActivity(a -> click(a.findViewById(R.id.report_more)));
+        tap("Удалить проверку");
+        tap("Удалить");
+        assertEquals(1, isolated.sessions().size());
+        assertEquals(70, isolated.people().size());
+        screenshot("13-one-deleted");
+        scenario.onActivity(a -> {
+          View old = text(root(a), "Утренняя проверка");
+          assertNotNull(old);
+          while (!old.isLongClickable() && old.getParent() instanceof View)
+            old = (View) old.getParent();
+          assertTrue(old.performLongClick());
+        });
+        tap("Отмена");
+        assertEquals(1, isolated.sessions().size());
+        scenario.onActivity(a -> click(a.findViewById(R.id.history_clear)));
+        tap("Отмена");
+        assertEquals(1, isolated.sessions().size());
+        scenario.onActivity(a -> click(a.findViewById(R.id.history_clear)));
+        tap("Очистить");
+        assertTrue(isolated.sessions().isEmpty());
+        assertEquals(70, isolated.people().size());
+        scenario.onActivity(a
+            -> assertNull("No clear button for empty history", a.findViewById(R.id.history_clear)));
+        screenshot("14-history-empty");
       }
     } finally {
       app.store = original;

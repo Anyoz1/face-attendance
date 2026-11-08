@@ -183,7 +183,7 @@ final class Ui {
   static final class Item {
     String title, subtitle, badge, icon;
     int badgeColor = GREEN, badgeFill = GREEN_BG, tint;
-    Runnable action;
+    Runnable action, longAction;
     Item(String title, String subtitle, String icon, Runnable action) {
       this.title = title;
       this.subtitle = subtitle;
@@ -279,6 +279,11 @@ final class Ui {
         if (item.action != null)
           item.action.run();
       });
+      body.setOnLongClickListener(item.longAction == null ? null : v -> {
+        item.longAction.run();
+        return true;
+      });
+      body.setLongClickable(item.longAction != null);
       body.setClickable(item.action != null);
       body.setFocusable(item.action != null);
     }
@@ -386,6 +391,13 @@ final class Ui {
           line(c, 21, 16, 6, 16, 9, 19);
           line(c, 18, 8, 15, 11);
           line(c, 6, 16, 9, 13);
+          break;
+        case "trash":
+          line(c, 4, 6, 20, 6);
+          line(c, 9, 6, 9, 3, 15, 3, 15, 6);
+          line(c, 6, 6, 7, 21, 17, 21, 18, 6);
+          line(c, 10, 10, 10, 17);
+          line(c, 14, 10, 14, 17);
           break;
         case "download":
           line(c, 12, 3, 12, 16, 7, 11);

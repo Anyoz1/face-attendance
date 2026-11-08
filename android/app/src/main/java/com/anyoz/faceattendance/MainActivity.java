@@ -292,6 +292,37 @@ public final class MainActivity extends ComponentActivity {
         .setPositiveButton("Продолжить", (d, w) -> safe(action).run())
         .show();
   }
+  private void confirmDeletion(String title, String description, String label, Runnable action) {
+    AlertDialog dialog = new AlertDialog.Builder(this)
+                             .setTitle(title)
+                             .setMessage(description)
+                             .setNegativeButton("Отмена", null)
+                             .setPositiveButton(label, (d, w) -> safe(action).run())
+                             .create();
+    dialog.setOnShowListener(
+        v -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Ui.ROSE));
+    dialog.show();
+  }
+  private void deleteHistoryDialog(AttendanceStore.Session session) {
+    confirmDeletion("Удалить проверку?",
+        session.name
+            + "\n\nЭта проверка и её отметки будут удалены. Люди, лица и группы останутся.",
+        "Удалить", () -> {
+          app.store.deleteSession(session.id);
+          toast("Проверка удалена");
+          showHistory();
+        });
+  }
+  private void clearHistoryDialog() {
+    confirmDeletion("Очистить историю?",
+        "Все завершённые проверки и их отметки будут удалены. Текущая проверка, люди и группы "
+        + "сохранятся.",
+        "Очистить", () -> {
+          int removed = app.store.clearHistory();
+          toast(removed == 0 ? "Завершённых проверок нет" : "История очищена");
+          showHistory();
+        });
+  }
   private EditText field(String hint, String value) {
     EditText e = new EditText(this);
     e.setHint(hint);
@@ -740,17 +771,33 @@ public final class MainActivity extends ComponentActivity {
     dialog.show();
   }
   private Ui.Item sessionItem(AttendanceStore.Session session) {
-    return new Ui
-        .Item(session.name, date(session.opened) + (session.closed == 0 ? "  Идёт сейчас" : ""),
-            "history", () -> showReport(session))
-        .badge(session.present + " / " + session.total, session.closed == 0 ? GREEN : MUTED,
-            Color.TRANSPARENT);
+    Ui.Item item =
+        new Ui
+            .Item(session.name, date(session.opened) + (session.closed == 0 ? "  Идёт сейчас" : ""),
+                "history", () -> showReport(session))
+            .badge(session.present + " / " + session.total, session.closed == 0 ? GREEN : MUTED,
+                Color.TRANSPARENT);
+    if (session.closed > 0)
+      item.longAction = () -> deleteHistoryDialog(session);
+    return item;
   }
-
   private void showHistory() {
     base("history");
     List<AttendanceStore.Session> sessions = app.store.sessions();
     headerSubtitle.setText(quantity(sessions.size(), "проверка", "проверки", "проверок"));
+    boolean completed = false;
+    for (AttendanceStore.Session session : sessions)
+      if (session.closed > 0) {
+        completed = true;
+        break;
+      }
+    if (completed) {
+      ImageButton clear = ui.iconButton(
+          "trash", "Очистить завершённую историю", Ui.SURFACE, Ui.ROSE, this::clearHistoryDialog);
+      clear.setId(R.id.history_clear);
+      LinearLayout bar = (LinearLayout) shell.getChildAt(0);
+      bar.addView(clear, bar.getChildCount() - 1);
+    }
     if (sessions.isEmpty()) {
       empty("history", "Пока ни одной проверки",
           "Начните проверку в журнале. Здесь останутся списки присутствующих и отсутствующих.");
@@ -812,10 +859,14 @@ public final class MainActivity extends ComponentActivity {
       menu.getMenu().add(0, 1, 0, "Сохранить CSV");
       if (session.closed == 0)
         menu.getMenu().add(0, 2, 1, "Завершить проверку");
+      else
+        menu.getMenu().add(0, 3, 1, "Удалить проверку");
       menu.setOnMenuItemClickListener(item -> {
         safe(() -> {
           if (item.getItemId() == 1)
             export(app.store.csv(session), "text/csv", "Rollmark-attendance.csv", 601);
+          else if (item.getItemId() == 3)
+            deleteHistoryDialog(session);
           else
             confirm("Завершить проверку?",
                 "Участники без отметки будут записаны как отсутствующие.", () -> {

@@ -11,4 +11,5 @@
     <item name="screen_header" type="id"/><item name="screen_title" type="id"/>
     <item name="screen_subtitle" type="id"/>
     <item name="home_report" type="id"/>
+    <item name="history_clear" type="id"/>
 </resources>
