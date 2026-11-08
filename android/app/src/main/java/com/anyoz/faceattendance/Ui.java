@@ -10,10 +10,13 @@ import android.widget.*;
 
 /** Small native UI primitives shared by Rollmark's screens. No bitmap assets or network fonts. */
 final class Ui {
-  static final int BG = 0xfff5f7fb, INK = 0xff172c48, MUTED = 0xff65758c, BLUE = 0xff4366ed,
-                   NAVY = 0xff192e4c, LIME = 0xffdef79b, LINE = 0xffe5eaf3, SOFT = 0xffeaf0ff,
-                   GREEN = 0xff18765a, GREEN_BG = 0xffe5f5ed, AMBER = 0xff9a621c,
-                   AMBER_BG = 0xfffff2dc;
+  // Neutral surfaces, one steel-blue action color, and semantic status colors.
+  static final int BG = 0xfff6f7f9, SURFACE = 0xffffffff, INK = 0xff20242a, MUTED = 0xff66717e,
+                   ACCENT = 0xff466783, LINE = 0xffe0e5ea, SOFT = 0xffe6edf3, GREEN = 0xff35644b,
+                   GREEN_BG = 0xffeaf1ec, AMBER = 0xff88612d, AMBER_BG = 0xfff6efe3;
+  static final int DARK_BG = 0xff252e38, DARK_SURFACE = 0xff303943, DARK_TEXT = 0xfff4f6f8,
+                   DARK_MUTED = 0xffbac3ce, DARK_ACCENT = 0xffb7cad9, DARK_SUCCESS = 0xffb4d3be,
+                   DARK_PREVIEW = 0xff151a20, DARK_TRACK = 0xff485563;
   final Context context;
   Ui(Context context) {
     this.context = context;
@@ -29,7 +32,16 @@ final class Ui {
   }
   Drawable ripple(int color, int radius) {
     return new RippleDrawable(
-        ColorStateList.valueOf(0x184366ed), shape(color, radius), shape(0xffffffff, radius));
+        ColorStateList.valueOf(0x18466783), shape(color, radius), shape(0xffffffff, radius));
+  }
+  GradientDrawable panel(int radius) {
+    GradientDrawable d = shape(SURFACE, radius);
+    d.setStroke(dp(1), LINE);
+    return d;
+  }
+  Drawable panelRipple(int radius) {
+    return new RippleDrawable(
+        ColorStateList.valueOf(0x18466783), panel(radius), shape(SURFACE, radius));
   }
   TextView text(String value, int size, int color) {
     TextView t = new TextView(context);
@@ -60,7 +72,7 @@ final class Ui {
   LinearLayout card() {
     LinearLayout l = column();
     l.setPadding(dp(20), dp(20), dp(20), dp(20));
-    l.setBackground(shape(Color.WHITE, 24));
+    l.setBackground(panel(24));
     return l;
   }
   void gap(LinearLayout parent, int height) {
@@ -128,7 +140,7 @@ final class Ui {
   View logo(int size) {
     ImageView v = new ImageView(context);
     v.setImageResource(com.anyoz.faceattendance.R.drawable.ic_mark);
-    v.setBackground(shape(NAVY, Math.round(size * .3f)));
+    v.setBackground(shape(DARK_BG, Math.round(size * .3f)));
     v.setPadding(dp(size * .12f), dp(size * .12f), dp(size * .12f), dp(size * .12f));
     v.setLayoutParams(new LinearLayout.LayoutParams(dp(size), dp(size)));
     v.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
@@ -139,12 +151,9 @@ final class Ui {
     String initials = words[0].isEmpty() ? "?" : words[0].substring(0, 1);
     if (words.length > 1)
       initials += words[words.length - 1].substring(0, 1);
-    int[] fills = {0xffedf0ff, 0xffe5f3ed, 0xffffefdf, 0xffeee9fa};
-    int[] inks = {BLUE, GREEN, AMBER, 0xff7e55ae};
-    int i = (name.hashCode() & 0x7fffffff) % fills.length;
-    TextView t = bold(initials.toUpperCase(java.util.Locale.ROOT), 16, inks[i]);
+    TextView t = bold(initials.toUpperCase(java.util.Locale.ROOT), 16, MUTED);
     t.setGravity(Gravity.CENTER);
-    t.setBackground(shape(fills[i], 16));
+    t.setBackground(shape(BG, 16));
     t.setLayoutParams(new LinearLayout.LayoutParams(dp(size), dp(size)));
     t.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
     return t;
@@ -170,7 +179,7 @@ final class Ui {
   final class ItemView extends FrameLayout {
     final LinearLayout body = row(), labels = column();
     final ImageView glyph = new ImageView(context);
-    final TextView initials = bold("", 16, BLUE), title = bold("", 16, INK),
+    final TextView initials = bold("", 16, MUTED), title = bold("", 16, INK),
                    subtitle = text("", 12, MUTED), badge = pill("", GREEN, GREEN_BG);
     final FrameLayout leading = new FrameLayout(context);
     final ImageView arrow = new ImageView(context);
@@ -178,9 +187,9 @@ final class Ui {
       super(context);
       setPadding(dp(20), 0, dp(20), dp(8));
       body.setPadding(dp(14), dp(15), dp(12), dp(15));
-      body.setBackground(ripple(Color.WHITE, 20));
+      body.setBackground(panelRipple(20));
       addView(body, new FrameLayout.LayoutParams(-1, -2));
-      leading.setBackground(shape(SOFT, 16));
+      leading.setBackground(shape(BG, 16));
       body.addView(leading, new LinearLayout.LayoutParams(dp(46), dp(46)));
       FrameLayout.LayoutParams centered =
           new FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER);
@@ -206,7 +215,7 @@ final class Ui {
       title.setText(item.title);
       subtitle.setText(item.subtitle);
       if (item.icon != null) {
-        glyph.setImageDrawable(icon(item.icon, BLUE));
+        glyph.setImageDrawable(icon(item.icon, MUTED));
         glyph.setVisibility(VISIBLE);
         initials.setVisibility(GONE);
       } else {
@@ -218,7 +227,7 @@ final class Ui {
         initials.setVisibility(VISIBLE);
       }
       if (item.icon != null)
-        leading.setBackground(shape(SOFT, 16));
+        leading.setBackground(shape(BG, 16));
       badge.setVisibility(item.badge == null ? GONE : VISIBLE);
       badge.setText(item.badge);
       badge.setTextColor(item.badgeColor);
@@ -251,16 +260,16 @@ final class Ui {
       paint.setStyle(Paint.Style.STROKE);
       paint.setStrokeWidth(dp(6));
       paint.setStrokeCap(Paint.Cap.ROUND);
-      paint.setColor(dark ? 0xff3b4e65 : LINE);
+      paint.setColor(dark ? DARK_TRACK : LINE);
       bounds.set(cx - r, cy - r, cx + r, cy + r);
       canvas.drawOval(bounds, paint);
-      paint.setColor(dark ? LIME : BLUE);
+      paint.setColor(dark ? DARK_ACCENT : ACCENT);
       canvas.drawArc(bounds, -90, total == 0 ? 0 : 360f * present / total, false, paint);
       paint.setStyle(Paint.Style.FILL);
       paint.setTypeface(ringTypeface);
       paint.setTextAlign(Paint.Align.CENTER);
       paint.setTextSize(dp(20));
-      paint.setColor(dark ? Color.WHITE : INK);
+      paint.setColor(dark ? DARK_TEXT : INK);
       String value = total == 0 ? "0%" : Math.round(present * 100f / total) + "%";
       canvas.drawText(value, cx, cy - (paint.ascent() + paint.descent()) / 2, paint);
     }

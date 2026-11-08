@@ -1,17 +1,17 @@
 <resources>
     <style name="AppThemeBase" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
-        <item name="android:colorAccent">#4366ED</item>
+        <item name="android:colorAccent">#466783</item>
         <item name="android:alertDialogTheme">@style/RollmarkDialogTheme</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:statusBarColor">#F5F7FB</item>
+        <item name="android:statusBarColor">#F6F7F9</item>
         <item name="android:navigationBarColor">#FFFFFF</item>
         <item name="android:windowActionModeOverlay">true</item>
-        <item name="android:windowBackground">#F5F7FB</item>
+        <item name="android:windowBackground">#F6F7F9</item>
     </style>
     <style name="RollmarkDialogTheme" parent="android:style/Theme.Material.Light.Dialog.Alert">
         <item name="android:fontFamily">sans</item>
-        <item name="android:colorAccent">#4366ED</item>
+        <item name="android:colorAccent">#466783</item>
         <item name="android:windowBackground">@drawable/bg_dialog</item>
         <item name="android:buttonBarButtonStyle">@style/RollmarkDialogButton</item>
     </style>

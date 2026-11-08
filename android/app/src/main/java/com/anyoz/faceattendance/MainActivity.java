@@ -116,7 +116,7 @@ public final class MainActivity extends ComponentActivity {
     };
   }
   private Button button(String value, Runnable action) {
-    return button(value, null, Ui.BLUE, Color.WHITE, action);
+    return button(value, null, Ui.ACCENT, Ui.SURFACE, action);
   }
   private Button button(String value, String icon, int fill, int ink, Runnable action) {
     Button b = ui.button(value, icon, fill, ink, safe(action));
@@ -126,7 +126,7 @@ public final class MainActivity extends ComponentActivity {
     return b;
   }
   private void link(String value, Runnable action) {
-    button(value, null, Ui.SOFT, Ui.BLUE, action);
+    button(value, null, Ui.SOFT, Ui.ACCENT, action);
   }
   private LinearLayout card() {
     LinearLayout c = ui.card();
@@ -144,9 +144,9 @@ public final class MainActivity extends ComponentActivity {
     screen = name;
     boolean dark = name.equals("camera");
     shell = ui.column();
-    shell.setBackgroundColor(dark ? Ui.NAVY : BG);
+    shell.setBackgroundColor(dark ? Ui.DARK_BG : BG);
     getWindow().setStatusBarColor(Color.TRANSPARENT);
-    getWindow().setNavigationBarColor(dark ? Ui.NAVY : Color.WHITE);
+    getWindow().setNavigationBarColor(dark ? Ui.DARK_BG : Ui.SURFACE);
     WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
         .setAppearanceLightStatusBars(!dark);
     WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
@@ -163,14 +163,14 @@ public final class MainActivity extends ComponentActivity {
     bar.setPadding(dp(20), dp(8), dp(20), dp(12));
     boolean child = name.equals("report") || name.equals("settings") || dark;
     if (child) {
-      ImageButton back = ui.iconButton("back", "Назад", dark ? 0xff2a3e59 : Color.WHITE,
-          dark ? Color.WHITE : INK, this::navigateBack);
+      ImageButton back = ui.iconButton("back", "Назад", dark ? Ui.DARK_SURFACE : Ui.SURFACE,
+          dark ? Ui.DARK_TEXT : INK, this::navigateBack);
       back.setId(R.id.navigate_back);
       bar.addView(back);
       TextView label = ui.bold(dark   ? "Камера"
               : name.equals("report") ? "Результаты"
                                       : "Настройки",
-          18, dark ? Color.WHITE : INK);
+          18, dark ? Ui.DARK_TEXT : INK);
       LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1);
       lp.leftMargin = dp(12);
       bar.addView(label, lp);
@@ -181,7 +181,7 @@ public final class MainActivity extends ComponentActivity {
       lp.leftMargin = dp(10);
       bar.addView(brand, lp);
       ImageButton settings =
-          ui.iconButton("settings", "Настройки", Color.WHITE, INK, this::showSettings);
+          ui.iconButton("settings", "Настройки", Ui.SURFACE, INK, this::showSettings);
       settings.setId(R.id.open_settings);
       bar.addView(settings);
     }
@@ -201,7 +201,7 @@ public final class MainActivity extends ComponentActivity {
   }
   private void addNavigation(String selected) {
     LinearLayout nav = ui.row();
-    nav.setBackgroundColor(Color.WHITE);
+    nav.setBackgroundColor(Ui.SURFACE);
     nav.setPadding(dp(8), dp(8), dp(8), dp(8));
     String[] labels = {"Главная", "Люди", "Группы", "История"},
              keys = {"home", "people", "groups", "history"},
@@ -213,15 +213,15 @@ public final class MainActivity extends ComponentActivity {
       LinearLayout item = ui.column();
       item.setGravity(Gravity.CENTER);
       item.setPadding(0, dp(4), 0, dp(4));
-      item.setBackground(ui.ripple(Color.WHITE, 18));
+      item.setBackground(ui.ripple(Ui.SURFACE, 18));
       FrameLayout pill = new FrameLayout(this);
-      pill.setBackground(shape(active ? Ui.SOFT : Color.WHITE, 18));
+      pill.setBackground(shape(active ? Ui.SOFT : Ui.SURFACE, 18));
       ImageView icon = new ImageView(this);
-      icon.setImageDrawable(ui.icon(icons[i], active ? Ui.BLUE : MUTED));
+      icon.setImageDrawable(ui.icon(icons[i], active ? Ui.ACCENT : MUTED));
       pill.addView(icon, new FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER));
       item.addView(pill, new LinearLayout.LayoutParams(dp(60), dp(32)));
       ui.gap(item, 5);
-      TextView caption = ui.bold(labels[i], 12, active ? Ui.BLUE : MUTED);
+      TextView caption = ui.bold(labels[i], 12, active ? Ui.ACCENT : MUTED);
       caption.setGravity(Gravity.CENTER);
       item.addView(caption, new LinearLayout.LayoutParams(-1, -2));
       item.setId(new int[] {R.id.nav_home, R.id.nav_people, R.id.nav_groups, R.id.nav_history}[i]);
@@ -321,7 +321,7 @@ public final class MainActivity extends ComponentActivity {
   private void empty(String icon, String heading, String detail) {
     LinearLayout c = card();
     ImageView image = new ImageView(this);
-    image.setImageDrawable(ui.icon(icon, Ui.BLUE));
+    image.setImageDrawable(ui.icon(icon, Ui.ACCENT));
     image.setPadding(dp(14), dp(14), dp(14), dp(14));
     image.setBackground(shape(Ui.SOFT, 18));
     c.addView(image, new LinearLayout.LayoutParams(dp(52), dp(52)));
@@ -341,10 +341,9 @@ public final class MainActivity extends ComponentActivity {
     AttendanceStore.Session active = app.store.active();
     int count = app.store.people().size(), groups = app.store.groups().size();
     LinearLayout hero = card();
-    hero.setBackground(shape(Ui.NAVY, 28));
+    hero.setBackground(ui.panel(28));
     LinearLayout head = ui.row();
-    head.addView(
-        ui.pill(active == null ? "БЫСТРАЯ ПЕРЕКЛИЧКА" : "ПРОВЕРКА ИДЁТ", Ui.LIME, 0xff304660));
+    head.addView(ui.pill(active == null ? "БЫСТРАЯ ПЕРЕКЛИЧКА" : "ПРОВЕРКА ИДЁТ", MUTED, BG));
     hero.addView(head);
     ui.gap(hero, 22);
     LinearLayout info = ui.row();
@@ -352,15 +351,15 @@ public final class MainActivity extends ComponentActivity {
     words.addView(ui.bold(active != null ? active.name
             : count == 0                 ? "Начнём\nзнакомство"
                                          : "Отметить всех.\nЗа пару минут.",
-        26, Color.WHITE));
+        26, INK));
     ui.gap(words, 12);
     words.addView(text(active != null ? active.present + " из " + active.total + " уже отмечены"
             : count == 0              ? "Добавьте людей — камера\nпоможет с регистрацией."
                                       : "Выберите группы и просто\nоткройте камеру.",
-        14, 0xffc1cedf));
+        14, MUTED));
     info.addView(words, new LinearLayout.LayoutParams(0, -2, 1));
     if (active != null) {
-      info.addView(ui.new Ring(active.present, active.total, true),
+      info.addView(ui.new Ring(active.present, active.total, false),
           new LinearLayout.LayoutParams(dp(84), dp(84)));
     }
     hero.addView(info);
@@ -368,7 +367,7 @@ public final class MainActivity extends ComponentActivity {
     Button primary = ui.button(active != null ? "Продолжить проверку"
             : count == 0                      ? "Добавить человека"
                                               : "Начать проверку",
-        active == null && count == 0 ? "plus" : "scan", Ui.LIME, Ui.NAVY,
+        active == null && count == 0 ? "plus" : "scan", Ui.ACCENT, Ui.SURFACE,
         safe(active != null ? ()
                                   -> openCamera(null, null, null)
                             : count == 0
@@ -379,8 +378,7 @@ public final class MainActivity extends ComponentActivity {
     hero.addView(primary, new LinearLayout.LayoutParams(-1, -2));
     if (active != null) {
       ui.gap(hero, 8);
-      hero.addView(ui.button("Посмотреть список", "arrow", 0xff304660, Color.WHITE,
-                       () -> showReport(active)),
+      hero.addView(ui.button("Посмотреть список", "arrow", BG, INK, () -> showReport(active)),
           new LinearLayout.LayoutParams(-1, -2));
     }
     LinearLayout stats = ui.row();
@@ -412,10 +410,10 @@ public final class MainActivity extends ComponentActivity {
   private View stat(String icon, String value, String label, Runnable action) {
     LinearLayout c = ui.card();
     c.setPadding(dp(18), dp(18), dp(18), dp(18));
-    c.setBackground(ui.ripple(Color.WHITE, 22));
+    c.setBackground(ui.panelRipple(22));
     LinearLayout top = ui.row();
     ImageView image = new ImageView(this);
-    image.setImageDrawable(ui.icon(icon, Ui.BLUE));
+    image.setImageDrawable(ui.icon(icon, MUTED));
     top.addView(image, new LinearLayout.LayoutParams(dp(22), dp(22)));
     TextView count = ui.bold(value, 27, INK);
     count.setGravity(Gravity.END);
@@ -468,7 +466,7 @@ public final class MainActivity extends ComponentActivity {
     EditText e = field(hint, "");
     e.setCompoundDrawablesRelativeWithIntrinsicBounds(ui.icon("search", MUTED), null, null, null);
     e.setCompoundDrawablePadding(dp(12));
-    e.setBackground(shape(Color.WHITE, 16));
+    e.setBackground(ui.panel(16));
     e.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
     page.addView(e);
     return e;
@@ -489,11 +487,11 @@ public final class MainActivity extends ComponentActivity {
     LinearLayout row = ui.row();
     for (String name : names) {
       boolean chosen = name.equals(selected);
-      TextView chip = ui.bold(name, 13, chosen ? Color.WHITE : MUTED);
+      TextView chip = ui.bold(name, 13, chosen ? Ui.SURFACE : MUTED);
       chip.setGravity(Gravity.CENTER);
       chip.setMinHeight(dp(48));
       chip.setPadding(dp(16), dp(10), dp(16), dp(10));
-      chip.setBackground(ui.ripple(chosen ? Ui.BLUE : Color.WHITE, 16));
+      chip.setBackground(ui.ripple(chosen ? Ui.ACCENT : Ui.SURFACE, 16));
       LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
       lp.rightMargin = dp(8);
       row.addView(chip, lp);
@@ -519,7 +517,7 @@ public final class MainActivity extends ComponentActivity {
     title("Люди");
     List<AttendanceStore.Person> people = app.store.people();
     note(quantity(people.size(), "человек", "человека", "человек") + " в ваших группах");
-    button("Добавить человека", "plus", Ui.BLUE, Color.WHITE, () -> enrollmentDialog(null));
+    button("Добавить человека", "plus", Ui.ACCENT, Ui.SURFACE, () -> enrollmentDialog(null));
     if (people.isEmpty()) {
       gap(16);
       empty("people", "Познакомимся?",
@@ -622,7 +620,7 @@ public final class MainActivity extends ComponentActivity {
     base("groups");
     title("Группы");
     note("Открывайте списки и проверяйте несколько групп вместе.");
-    button("Создать группу", "plus", Ui.BLUE, Color.WHITE, this::groupDialog);
+    button("Создать группу", "plus", Ui.ACCENT, Ui.SURFACE, this::groupDialog);
     List<AttendanceStore.Person> people = app.store.people();
     Rows rows = list();
     List<Ui.Item> items = new ArrayList<>();
@@ -775,17 +773,17 @@ public final class MainActivity extends ComponentActivity {
     summary.addView(ui.pill(session.closed == 0 ? "Проверка идёт" : "Проверка завершена",
         session.closed == 0 ? GREEN : MUTED, session.closed == 0 ? Ui.GREEN_BG : BG));
     if (session.closed == 0) {
-      button("Продолжить с камерой", "camera", Ui.BLUE, Color.WHITE,
+      button("Продолжить с камерой", "camera", Ui.ACCENT, Ui.SURFACE,
           () -> openCamera(null, null, null));
     }
     LinearLayout actions = ui.row();
-    Button csv = ui.button("CSV", "download", Ui.SOFT, Ui.BLUE,
+    Button csv = ui.button("CSV", "download", Ui.SOFT, Ui.ACCENT,
         safe(() -> export(app.store.csv(session), "text/csv", "Rollmark-attendance.csv", 601)));
     actions.addView(csv, new LinearLayout.LayoutParams(0, -2, 1));
     if (session.closed == 0) {
       View space = new View(this);
       actions.addView(space, new LinearLayout.LayoutParams(dp(10), 1));
-      actions.addView(ui.button("Завершить", null, Color.WHITE, INK,
+      actions.addView(ui.button("Завершить", null, Ui.SURFACE, INK,
                           ()
                               -> confirm("Завершить проверку?",
                                   "Неотмеченные участники получат статус «Отсутствует».",
@@ -894,7 +892,7 @@ public final class MainActivity extends ComponentActivity {
                       runOnUiThread(() -> error(e));
                     }
                   })));
-    button("Сохранить резервную копию", "download", Ui.BLUE, Color.WHITE,
+    button("Сохранить резервную копию", "download", Ui.ACCENT, Ui.SURFACE,
         () -> app.worker.execute(() -> {
           try {
             String backup = app.store.backup();
@@ -903,7 +901,7 @@ public final class MainActivity extends ComponentActivity {
             runOnUiThread(() -> error(e));
           }
         }));
-    button("Восстановить из копии", "restore", Ui.SOFT, Ui.BLUE, () -> {
+    button("Восстановить из копии", "restore", Ui.SOFT, Ui.ACCENT, () -> {
       Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
       intent.setType("application/json");
       intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -1011,14 +1009,14 @@ public final class MainActivity extends ComponentActivity {
     content.removeAllViews();
     content.addView(page, new FrameLayout.LayoutParams(-1, -1));
     page.setPadding(dp(20), 0, dp(20), dp(16));
-    page.addView(ui.bold(name == null ? "Отметка посещаемости" : name, 23, Color.WHITE));
+    page.addView(ui.bold(name == null ? "Отметка посещаемости" : name, 23, Ui.DARK_TEXT));
     gap(8);
     page.addView(text(
         name == null ? "Подойдите к камере по очереди" : group + " · в кадре только один человек",
-        14, 0xffb5c5db));
+        14, Ui.DARK_MUTED));
     gap(16);
     FrameLayout stage = new FrameLayout(this);
-    stage.setBackground(shape(0xff0c1a2c, 24));
+    stage.setBackground(shape(Ui.DARK_PREVIEW, 24));
     stage.setClipToOutline(true);
     LinearLayout.LayoutParams stageLp = new LinearLayout.LayoutParams(-1, 0, 1);
     stageLp.bottomMargin = dp(16);
@@ -1032,7 +1030,7 @@ public final class MainActivity extends ComponentActivity {
     stage.addView(overlay, new FrameLayout.LayoutParams(-1, -1));
     cameraCount = ui.pill(name == null ? active.present + " / " + active.total + " отмечены"
                                        : "АВТОМАТИЧЕСКАЯ СЪЁМКА",
-        Color.WHITE, 0xdd253b57);
+        Ui.DARK_TEXT, 0xdd303943);
     cameraCount.setId(R.id.camera_count);
     FrameLayout.LayoutParams badgeLp =
         new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
@@ -1040,13 +1038,13 @@ public final class MainActivity extends ComponentActivity {
     stage.addView(cameraCount, badgeLp);
     LinearLayout status = ui.column();
     status.setPadding(dp(18), dp(16), dp(18), dp(16));
-    status.setBackground(shape(0xff2a405d, 20));
-    cameraResult = ui.bold("Подготовка камеры…", 19, Color.WHITE);
+    status.setBackground(shape(Ui.DARK_SURFACE, 20));
+    cameraResult = ui.bold("Подготовка камеры…", 19, Ui.DARK_TEXT);
     status.addView(cameraResult);
     ui.gap(status, 8);
     cameraDetail =
         text(name == null ? "Держите лицо ближе к центру" : "Кадры сохранятся автоматически", 13,
-            0xffc1cedf);
+            Ui.DARK_MUTED);
     status.addView(cameraDetail);
     captureProgress = null;
     if (name != null) {
@@ -1054,16 +1052,17 @@ public final class MainActivity extends ComponentActivity {
       captureProgress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
       captureProgress.setId(R.id.registration_progress);
       captureProgress.setMax(6);
-      captureProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(Ui.LIME));
+      captureProgress.setProgressTintList(
+          android.content.res.ColorStateList.valueOf(Ui.DARK_ACCENT));
       captureProgress.setProgressBackgroundTintList(
-          android.content.res.ColorStateList.valueOf(0xff50617a));
+          android.content.res.ColorStateList.valueOf(Ui.DARK_TRACK));
       captureProgress.setContentDescription("Снято 0 из 6 кадров");
       status.addView(captureProgress, new LinearLayout.LayoutParams(-1, dp(6)));
     }
     page.addView(status);
     gap(14);
     LinearLayout actions = ui.row();
-    actions.addView(ui.button("Сменить", "flip", 0xff304660, Color.WHITE, () -> {
+    actions.addView(ui.button("Сменить", "flip", Ui.DARK_SURFACE, Ui.DARK_TEXT, () -> {
       stopCameraInternal();
       front = !front;
       startCamera();
@@ -1071,7 +1070,7 @@ public final class MainActivity extends ComponentActivity {
     View spacer = new View(this);
     actions.addView(spacer, new LinearLayout.LayoutParams(dp(10), 1));
     actions.addView(ui.button(name == null ? "Список" : "Отмена", name == null ? "people" : "close",
-                        Ui.LIME, Ui.NAVY,
+                        Ui.DARK_ACCENT, Ui.DARK_BG,
                         () -> {
                           if (name == null && active != null)
                             showReport(active);
@@ -1289,7 +1288,7 @@ public final class MainActivity extends ComponentActivity {
       if (!cameraActive || generation != version || cameraResult == null)
         return;
       cameraResult.setText(message);
-      cameraResult.setTextColor(success ? Ui.LIME : Color.WHITE);
+      cameraResult.setTextColor(success ? Ui.DARK_SUCCESS : Ui.DARK_TEXT);
       cameraDetail.setText(detail.replaceFirst("^\\d+ мс · ", ""));
       if (captureProgress != null) {
         captureProgress.setProgress(captured, true);
@@ -1349,7 +1348,7 @@ public final class MainActivity extends ComponentActivity {
       super.onDraw(canvas);
       p.setStyle(Paint.Style.STROKE);
       p.setStrokeWidth(dp(2));
-      p.setColor(0xffa4baff);
+      p.setColor(Ui.DARK_ACCENT);
       if (box == null || imageWidth == 0) {
         p.setAlpha(140);
         guide.set(getWidth() * .22f, getHeight() * .16f, getWidth() * .78f, getHeight() * .84f);
@@ -1369,7 +1368,7 @@ public final class MainActivity extends ComponentActivity {
       r.set(left + r.left * scale, top + r.top * scale, left + r.right * scale,
           top + r.bottom * scale);
       p.setAlpha(255);
-      p.setColor(success ? Ui.LIME : 0xffa4baff);
+      p.setColor(success ? Ui.DARK_SUCCESS : Ui.DARK_ACCENT);
       canvas.drawRoundRect(r, dp(18), dp(18), p);
       p.setStyle(Paint.Style.FILL);
       p.setTextSize(dp(12));
