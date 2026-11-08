@@ -1,7 +1,7 @@
 <resources>
     <style name="AppTheme" parent="AppThemeBase">
         <item name="android:windowLightNavigationBar">true</item>
-        <item name="android:windowSplashScreenBackground">#252E38</item>
+        <item name="android:windowSplashScreenBackground">#E9EEF0</item>
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_mark</item>
     </style>
 </resources>

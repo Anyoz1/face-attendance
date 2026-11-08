@@ -8,4 +8,7 @@
     <item name="camera_count" type="id"/><item name="registration_progress" type="id"/>
     <item name="add_person" type="id"/><item name="add_group" type="id"/>
     <item name="people_group_filter" type="id"/><item name="report_more" type="id"/>
+    <item name="screen_header" type="id"/><item name="screen_title" type="id"/>
+    <item name="screen_subtitle" type="id"/>
+    <item name="home_report" type="id"/>
 </resources>

@@ -42,7 +42,7 @@ public final class MainActivity extends ComponentActivity {
   private ProcessCameraProvider cameraProvider;
   private PreviewView preview;
   private FaceOverlay overlay;
-  private TextView cameraResult, cameraDetail, cameraCount;
+  private TextView cameraResult, cameraDetail, cameraCount, headerSubtitle;
   private ProgressBar captureProgress;
   private volatile boolean cameraActive = false;
   private volatile int generation = 0;
@@ -94,7 +94,7 @@ public final class MainActivity extends ComponentActivity {
     ui.gap(page, height);
   }
   private void title(String value) {
-    page.addView(ui.bold(value, 24, INK));
+    page.addView(ui.bold(value, Ui.TITLE, INK));
     gap(8);
   }
   private void note(String value) {
@@ -102,9 +102,9 @@ public final class MainActivity extends ComponentActivity {
     gap(12);
   }
   private void section(String value) {
-    gap(24);
-    page.addView(ui.bold(value, 16, INK));
-    gap(14);
+    gap(16);
+    page.addView(ui.bold(value, 15, INK));
+    gap(10);
   }
   private Runnable safe(Runnable action) {
     return () -> {
@@ -116,7 +116,7 @@ public final class MainActivity extends ComponentActivity {
     };
   }
   private Button button(String value, Runnable action) {
-    return button(value, null, Ui.ACCENT, Ui.SURFACE, action);
+    return button(value, null, Ui.ACCENT, Ui.ON_ACCENT, action);
   }
   private Button button(String value, String icon, int fill, int ink, Runnable action) {
     Button b = ui.button(value, icon, fill, ink, safe(action));
@@ -135,15 +135,15 @@ public final class MainActivity extends ComponentActivity {
       ((InputMethodManager) getSystemService(INPUT_METHOD_SERVICE))
           .hideSoftInputFromWindow(focused.getWindowToken(), 0);
     screen = name;
-    boolean dark = name.equals("camera");
+    boolean child = name.equals("report") || name.equals("settings") || name.equals("camera");
     shell = ui.column();
-    shell.setBackgroundColor(dark ? Ui.DARK_BG : Ui.SURFACE);
+    shell.setBackgroundColor(BG);
     getWindow().setStatusBarColor(Color.TRANSPARENT);
-    getWindow().setNavigationBarColor(dark ? Ui.DARK_BG : Ui.SURFACE);
+    getWindow().setNavigationBarColor(BG);
     WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
-        .setAppearanceLightStatusBars(!dark);
+        .setAppearanceLightStatusBars(true);
     WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
-        .setAppearanceLightNavigationBars(!dark);
+        .setAppearanceLightNavigationBars(true);
     ViewCompat.setOnApplyWindowInsetsListener(shell, (view, insets) -> {
       androidx.core.graphics.Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()),
                                     ime = insets.getInsets(WindowInsetsCompat.Type.ime());
@@ -152,29 +152,49 @@ public final class MainActivity extends ComponentActivity {
     });
     setContentView(shell);
     ViewCompat.requestApplyInsets(shell);
+    String heading = name.equals("people") ? "Люди"
+        : name.equals("groups")            ? "Группы"
+        : name.equals("history")           ? "История"
+        : name.equals("report")            ? "Результаты"
+        : name.equals("settings")          ? "Настройки"
+        : name.equals("camera")            ? "Камера"
+                                           : "Журнал";
+    String category = name.equals("report") ? "people" : name;
+    int tint = Ui.tint(category);
     LinearLayout bar = ui.row();
-    bar.setPadding(dp(20), dp(8), dp(20), dp(12));
-    boolean child = name.equals("report") || name.equals("settings") || dark;
-    if (child) {
-      ImageButton back = ui.iconButton("back", "Назад", dark ? Ui.DARK_SURFACE : Ui.SURFACE,
-          dark ? Ui.DARK_TEXT : INK, this::navigateBack);
-      back.setId(R.id.navigate_back);
-      bar.addView(back);
-      TextView label = ui.bold(dark   ? "Камера"
-              : name.equals("report") ? "Результаты"
-                                      : "Настройки",
-          18, dark ? Ui.DARK_TEXT : INK);
-      LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1);
-      lp.leftMargin = dp(12);
-      bar.addView(label, lp);
-    } else {
-      String heading = name.equals("people") ? "Люди"
-          : name.equals("groups")            ? "Группы"
-          : name.equals("history")           ? "История"
-                                             : "Rollmark";
-      bar.addView(ui.bold(heading, 21, INK), new LinearLayout.LayoutParams(0, -2, 1));
+    bar.setId(R.id.screen_header);
+    bar.setMinimumHeight(dp(64));
+    bar.setPadding(dp(Ui.PAGE), dp(8), dp(Ui.PAGE), dp(8));
+    ImageButton leading = ui.iconButton(child ? "back" : category, child ? "Назад" : heading,
+        Ui.tintSurface(tint), tint, child ? this::navigateBack : () -> {});
+    if (child)
+      leading.setId(R.id.navigate_back);
+    else {
+      leading.setClickable(false);
+      leading.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+    }
+    bar.addView(leading);
+    LinearLayout labels = ui.column();
+    TextView title = ui.bold(heading, Ui.TITLE, INK);
+    title.setId(R.id.screen_title);
+    labels.addView(title);
+    ui.gap(labels, 2);
+    headerSubtitle = text(name.equals("home") ? "Посещаемость на устройстве"
+            : name.equals("camera")           ? "Проверка по лицу"
+            : name.equals("settings")         ? "Приложение и данные"
+            : name.equals("report")           ? "Список посещаемости"
+                                              : "",
+        Ui.CAPTION, MUTED);
+    headerSubtitle.setId(R.id.screen_subtitle);
+    headerSubtitle.setSingleLine(true);
+    labels.addView(headerSubtitle);
+    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1);
+    lp.leftMargin = dp(12);
+    lp.rightMargin = dp(8);
+    bar.addView(labels, lp);
+    if (!child) {
       ImageButton settings =
-          ui.iconButton("settings", "Настройки", Color.TRANSPARENT, MUTED, this::showSettings);
+          ui.iconButton("settings", "Настройки", Ui.SURFACE, MUTED, this::showSettings);
       settings.setId(R.id.open_settings);
       bar.addView(settings);
     }
@@ -186,16 +206,36 @@ public final class MainActivity extends ComponentActivity {
     scroll.setClipToPadding(false);
     scroll.setVerticalScrollBarEnabled(false);
     page = ui.column();
-    page.setPadding(dp(20), dp(12), dp(20), dp(12));
+    page.setPadding(dp(Ui.PAGE), dp(8), dp(Ui.PAGE), dp(20));
     scroll.addView(page);
     content.addView(scroll, new FrameLayout.LayoutParams(-1, -1));
-    if (!dark && !child)
+    if (!child)
       addNavigation(name);
+  }
+  private LinearLayout panel() {
+    LinearLayout panel = ui.panel();
+    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+    lp.bottomMargin = dp(12);
+    page.addView(panel, lp);
+    return panel;
+  }
+  private Button panelButton(LinearLayout panel, String label, String icon, Runnable action) {
+    Button b = ui.button(label, icon, Ui.ACCENT, Ui.ON_ACCENT, safe(action));
+    panel.addView(b, new LinearLayout.LayoutParams(-1, dp(Ui.CONTROL)));
+    return b;
+  }
+  private void groupRows(List<Ui.Item> items) {
+    for (int i = 0; i < items.size(); i++) {
+      Ui.ItemView view = ui.new ItemView();
+      view.setPadding(0, 0, 0, 0);
+      view.bind(items.get(i), i == 0, i == items.size() - 1);
+      page.addView(view);
+    }
   }
   private void addNavigation(String selected) {
     LinearLayout nav = ui.row();
-    nav.setBackgroundColor(Ui.SURFACE);
-    nav.setPadding(dp(8), dp(8), dp(8), dp(8));
+    nav.setBackgroundColor(BG);
+    nav.setPadding(dp(6), dp(6), dp(6), dp(6));
     String[] labels = {"Журнал", "Люди", "Группы", "История"},
              keys = {"home", "people", "groups", "history"},
              icons = {"home", "people", "groups", "history"};
@@ -205,16 +245,16 @@ public final class MainActivity extends ComponentActivity {
       boolean active = selected.equals(keys[i]);
       LinearLayout item = ui.column();
       item.setGravity(Gravity.CENTER);
-      item.setPadding(0, dp(4), 0, dp(4));
-      item.setBackground(ui.ripple(Ui.SURFACE, 18));
+      item.setPadding(0, dp(2), 0, dp(2));
+      item.setBackground(ui.ripple(BG, 14));
       FrameLayout pill = new FrameLayout(this);
-      pill.setBackground(null);
+      pill.setBackground(shape(active ? Ui.tintSurface(Ui.tint(icons[i])) : BG, 12));
       ImageView icon = new ImageView(this);
-      icon.setImageDrawable(ui.icon(icons[i], active ? Ui.ACCENT : MUTED));
-      pill.addView(icon, new FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER));
-      item.addView(pill, new LinearLayout.LayoutParams(dp(60), dp(32)));
-      ui.gap(item, 5);
-      TextView caption = ui.bold(labels[i], 12, active ? Ui.ACCENT : MUTED);
+      icon.setImageDrawable(ui.icon(icons[i], active ? Ui.tint(icons[i]) : MUTED));
+      pill.addView(icon, new FrameLayout.LayoutParams(dp(Ui.ICON), dp(Ui.ICON), Gravity.CENTER));
+      item.addView(pill, new LinearLayout.LayoutParams(dp(52), dp(28)));
+      ui.gap(item, 3);
+      TextView caption = ui.bold(labels[i], 12, active ? Ui.tint(icons[i]) : MUTED);
       caption.setGravity(Gravity.CENTER);
       item.addView(caption, new LinearLayout.LayoutParams(-1, -2));
       item.setId(new int[] {R.id.nav_home, R.id.nav_people, R.id.nav_groups, R.id.nav_history}[i]);
@@ -261,8 +301,8 @@ public final class MainActivity extends ComponentActivity {
     e.setTextColor(INK);
     e.setHintTextColor(MUTED);
     e.setPadding(dp(16), dp(14), dp(16), dp(14));
-    e.setBackground(shape(BG, 8));
-    e.setMinHeight(dp(48));
+    e.setBackground(ui.fieldBackground());
+    e.setMinHeight(dp(Ui.CONTROL));
     LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
     lp.bottomMargin = dp(12);
     e.setLayoutParams(lp);
@@ -283,8 +323,9 @@ public final class MainActivity extends ComponentActivity {
       }
     };
     s.setAdapter(adapter);
-    s.setBackground(shape(BG, 8));
-    s.setMinimumHeight(dp(48));
+    s.setBackground(ui.fieldBackground());
+    s.setMinimumHeight(dp(Ui.CONTROL));
+    s.setPopupBackgroundDrawable(shape(Ui.SURFACE, Ui.RADIUS));
     if (selected != null)
       s.setSelection(Math.max(0, values.indexOf(selected)));
     return s;
@@ -295,7 +336,7 @@ public final class MainActivity extends ComponentActivity {
     return l;
   }
   private void label(LinearLayout parent, String title) {
-    parent.addView(ui.bold(title, 12, MUTED));
+    parent.addView(ui.bold(title, Ui.CAPTION, MUTED));
     ui.gap(parent, 8);
   }
   private ScrollView formScroll(LinearLayout form) {
@@ -308,93 +349,75 @@ public final class MainActivity extends ComponentActivity {
     return DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
         .format(new Date(time));
   }
-  private void inline(Ui.Item item) {
-    Ui.ItemView view = ui.new ItemView();
-    view.setPadding(0, 0, 0, 0);
-    view.bind(item);
-    page.addView(view);
-  }
   private void empty(String icon, String heading, String detail) {
-    gap(20);
-    page.addView(ui.bold(heading, 18, INK));
-    gap(8);
-    note(detail);
+    LinearLayout box = panel();
+    box.addView(ui.bold(heading, 20, INK));
+    ui.gap(box, 8);
+    box.addView(text(detail, Ui.CAPTION, MUTED));
   }
-  private void listActions(String count, String label, int id, Runnable action) {
-    LinearLayout row = ui.row();
-    row.addView(text(count, 14, MUTED), new LinearLayout.LayoutParams(0, -2, 1));
-    Button add = ui.button(label, "plus", Color.TRANSPARENT, Ui.ACCENT, safe(action));
-    add.setId(id);
-    add.setContentDescription(label.equals("Добавить") ? "Добавить человека" : "Создать группу");
-    row.addView(add, new LinearLayout.LayoutParams(-2, dp(48)));
-    page.addView(row);
-    gap(12);
-  }
-  private void firstStep(String number, String heading, String detail) {
-    LinearLayout row = ui.row();
-    row.setGravity(Gravity.TOP);
-    TextView index = text(number, 16, MUTED);
-    row.addView(index, new LinearLayout.LayoutParams(dp(28), -2));
-    LinearLayout words = ui.column();
-    words.addView(ui.bold(heading, 15, INK));
-    ui.gap(words, 4);
-    words.addView(text(detail, 13, MUTED));
-    row.addView(words, new LinearLayout.LayoutParams(0, -2, 1));
-    page.addView(row);
-    gap(18);
-  }
-
   private void showHome() {
     base("home");
-    page.addView(
-        text(new SimpleDateFormat("EEEE, d MMMM", new Locale("ru")).format(new Date()), 14, MUTED));
-    gap(24);
+    headerSubtitle.setText(
+        new SimpleDateFormat("EEEE, d MMMM", new Locale("ru")).format(new Date()));
     AttendanceStore.Session active = app.store.active();
     int count = app.store.people().size();
+    LinearLayout feature = panel();
+    feature.addView(ui.bold(active != null ? active.name
+            : count == 0                   ? "Добавьте участников"
+                                           : "Новая проверка",
+        18, INK));
+    ui.gap(feature, 6);
+    feature.addView(text(active != null ? String.join(", ", active.groups)
+            : count == 0 ? "Укажите имя и группу. Камера сохранит лицо автоматически."
+                         : "Выберите группы для проверки.",
+        Ui.CAPTION, MUTED));
+    ui.gap(feature, 12);
     if (active != null) {
-      page.addView(ui.bold(active.name, 24, INK));
-      gap(6);
-      note(String.join(", ", active.groups));
       LinearLayout tally = ui.row();
-      tally.addView(ui.bold(String.valueOf(active.present), 40, INK));
-      TextView rest = text("из " + active.total + " отмечены", 16, MUTED);
-      LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
-      lp.leftMargin = dp(10);
-      tally.addView(rest, lp);
-      page.addView(tally);
-      gap(18);
-      Button camera = button(
-          "Открыть камеру", "scan", Ui.ACCENT, Ui.SURFACE, () -> openCamera(null, null, null));
+      tally.addView(ui.bold(active.present + " / " + active.total, 24, INK));
+      TextView countLabel = text("отмечены", Ui.CAPTION, MUTED);
+      LinearLayout.LayoutParams countLp = new LinearLayout.LayoutParams(-2, -2);
+      countLp.leftMargin = dp(10);
+      tally.addView(countLabel, countLp);
+      feature.addView(tally);
+      ui.gap(feature, 12);
+      LinearLayout actions = ui.row();
+      feature.addView(actions);
+      Button camera =
+          ui.button("Камера", "scan", Ui.ACCENT, Ui.ON_ACCENT, () -> openCamera(null, null, null));
       camera.setId(R.id.home_action);
-      button("Посмотреть список", null, Color.TRANSPARENT, Ui.ACCENT, () -> showReport(active));
+      camera.setContentDescription("Открыть камеру");
+      actions.addView(camera, new LinearLayout.LayoutParams(0, dp(Ui.CONTROL), 1));
+      View gap = new View(this);
+      actions.addView(gap, new LinearLayout.LayoutParams(dp(8), 1));
+      Button report = ui.button("Список", "people", Ui.SURFACE, Ui.BLUE, () -> showReport(active));
+      report.setId(R.id.home_report);
+      report.setContentDescription("Посмотреть список участников");
+      actions.addView(report, new LinearLayout.LayoutParams(0, dp(Ui.CONTROL), 1));
     } else {
-      title(count == 0 ? "Добавьте участников" : "Новая проверка");
-      note(count == 0 ? "Укажите имя и группу. Лицо сохранится автоматически, когда человек "
-                  + "посмотрит в камеру."
-                      : "Выберите группы, которые нужно отметить сегодня.");
-      Button primary =
-          button(count == 0 ? "Добавить человека" : "Начать проверку", count == 0 ? "plus" : "scan",
-              Ui.ACCENT, Ui.SURFACE, count == 0 ? () -> enrollmentDialog(null) : this::startDialog);
+      Button primary = panelButton(feature, count == 0 ? "Добавить человека" : "Начать проверку",
+          count == 0 ? "plus" : "scan",
+          count == 0 ? () -> enrollmentDialog(null) : this::startDialog);
       primary.setId(R.id.home_action);
     }
-    List<AttendanceStore.Session> completed = new ArrayList<>();
+    List<Ui.Item> recent = new ArrayList<>();
     for (AttendanceStore.Session session : app.store.sessions())
-      if (session.closed > 0)
-        completed.add(session);
-    if (!completed.isEmpty()) {
+      if (session.closed > 0 && recent.size() < 4)
+        recent.add(sessionItem(session));
+    if (!recent.isEmpty()) {
       section("Последние проверки");
-      for (int i = 0; i < Math.min(4, completed.size()); i++) inline(sessionItem(completed.get(i)));
+      groupRows(recent);
     } else if (count == 0) {
-      section("Для первой проверки");
-      firstStep("1", "Добавьте людей", "Имя, группа и несколько секунд перед камерой.");
-      firstStep("2", "Начните проверку", "Можно выбрать сразу несколько групп.");
-      firstStep("3", "Отмечайте посещение", "Участники подходят к телефону по очереди.");
-    } else {
-      gap(20);
-      note("Результаты сохранятся в истории. В списке можно поставить или снять отметку вручную.");
+      section("Как начать");
+      groupRows(Arrays.asList(
+          new Ui.Item("Добавьте людей", "Имя, группа и несколько секунд перед камерой", "people",
+              () -> showPeople(null)),
+          new Ui.Item("Выберите группы", "Одна проверка может объединять несколько групп", "groups",
+              this::showGroups),
+          new Ui.Item(
+              "Отмечайте посещение", "Участники подходят к телефону по очереди", "scan", null)));
     }
   }
-
   private final class Rows extends BaseAdapter {
     List<Ui.Item> values = new ArrayList<>();
     void replace(List<Ui.Item> rows) {
@@ -412,7 +435,7 @@ public final class MainActivity extends ComponentActivity {
     }
     public View getView(int i, View view, ViewGroup parent) {
       Ui.ItemView row = view instanceof Ui.ItemView ? (Ui.ItemView) view : ui.new ItemView();
-      row.bind(values.get(i));
+      row.bind(values.get(i), i == 0, i == values.size() - 1);
       return row;
     }
   }
@@ -432,12 +455,17 @@ public final class MainActivity extends ComponentActivity {
     return rows;
   }
   private EditText search(String hint) {
+    return search(page, hint);
+  }
+  private EditText search(LinearLayout parent, String hint) {
     EditText e = field(hint, "");
     e.setCompoundDrawablesRelativeWithIntrinsicBounds(ui.icon("search", MUTED), null, null, null);
     e.setCompoundDrawablePadding(dp(12));
-    e.setBackground(shape(BG, 10));
+    e.setBackground(ui.fieldBackground());
     e.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
-    page.addView(e);
+    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(Ui.CONTROL));
+    lp.bottomMargin = dp(12);
+    parent.addView(e, lp);
     return e;
   }
   private void watch(EditText edit, Runnable action) {
@@ -460,7 +488,7 @@ public final class MainActivity extends ComponentActivity {
       label.setGravity(Gravity.CENTER);
       label.setPadding(dp(14), 0, dp(14), 0);
       FrameLayout tab = new FrameLayout(this);
-      tab.setBackground(ui.ripple(Ui.SURFACE, 4));
+      tab.setBackground(ui.ripple(Ui.SURFACE, 8));
       tab.addView(label, new FrameLayout.LayoutParams(-1, -1));
       int width = Math.round(label.getPaint().measureText(name)) + dp(28);
       if (chosen) {
@@ -490,23 +518,38 @@ public final class MainActivity extends ComponentActivity {
     peopleFilter = filter;
     base("people");
     List<AttendanceStore.Person> people = app.store.people();
-    listActions(quantity(people.size(), "человек", "человека", "человек"), "Добавить",
-        R.id.add_person, () -> enrollmentDialog(null));
+    headerSubtitle.setText(quantity(people.size(), "человек", "человека", "человек"));
+    LinearLayout controls = panel();
     if (people.isEmpty()) {
-      empty("people", "Список пока пуст",
-          "Добавьте участников. После регистрации лицо можно переснять или перевести человека в "
-              + "другую группу.");
+      Button add = panelButton(controls, "Добавить человека", "plus", () -> enrollmentDialog(null));
+      add.setId(R.id.add_person);
+      ui.gap(controls, 16);
+      controls.addView(text("Здесь появятся участники после регистрации лица.", Ui.CAPTION, MUTED));
       return;
     }
-    EditText query = search("Имя или группа");
+    LinearLayout toolbar = ui.row();
+    controls.addView(toolbar);
+    EditText query = field("Поиск", "");
     query.setId(R.id.people_search);
+    query.setContentDescription("Найти человека по имени или группе");
+    query.setCompoundDrawablesRelativeWithIntrinsicBounds(
+        ui.icon("search", MUTED), null, null, null);
+    query.setCompoundDrawablePadding(dp(10));
+    toolbar.addView(query, new LinearLayout.LayoutParams(0, dp(Ui.CONTROL), 1));
+    Button add =
+        ui.button("Добавить", "plus", Ui.ACCENT, Ui.ON_ACCENT, () -> enrollmentDialog(null));
+    add.setId(R.id.add_person);
+    add.setContentDescription("Добавить человека");
+    LinearLayout.LayoutParams addLp = new LinearLayout.LayoutParams(-2, dp(Ui.CONTROL));
+    addLp.leftMargin = dp(12);
+    toolbar.addView(add, addLp);
+    ui.gap(controls, 12);
     List<String> names = new ArrayList<>();
     names.add("Все группы");
     names.addAll(app.store.groups());
     Spinner filterView = spinner(names, peopleFilter == null ? "Все группы" : peopleFilter);
     filterView.setId(R.id.people_group_filter);
-    page.addView(filterView);
-    gap(4);
+    controls.addView(filterView, new LinearLayout.LayoutParams(-1, dp(Ui.CONTROL)));
     Rows rows = list();
     Runnable update = () -> {
       String q = query.getText().toString().trim().toLowerCase(Locale.ROOT);
@@ -517,6 +560,7 @@ public final class MainActivity extends ComponentActivity {
           continue;
         Ui.Item item = new Ui.Item(person.name, peopleFilter == null ? person.group : "", null,
             () -> personActions(person));
+        item.tint = Ui.groupTint(person.group);
         if (person.samples < 6)
           item.badge("Переснять", Ui.AMBER, Color.TRANSPARENT);
         items.add(item);
@@ -595,8 +639,10 @@ public final class MainActivity extends ComponentActivity {
   }
   private void showGroups() {
     base("groups");
-    listActions(quantity(app.store.groups().size(), "группа", "группы", "групп"), "Создать",
-        R.id.add_group, this::groupDialog);
+    headerSubtitle.setText(quantity(app.store.groups().size(), "группа", "группы", "групп"));
+    LinearLayout controls = panel();
+    Button create = panelButton(controls, "Создать группу", "plus", this::groupDialog);
+    create.setId(R.id.add_group);
     List<AttendanceStore.Person> people = app.store.people();
     Rows rows = list();
     List<Ui.Item> items = new ArrayList<>();
@@ -605,8 +651,10 @@ public final class MainActivity extends ComponentActivity {
       for (AttendanceStore.Person p : people)
         if (p.group.equals(group))
           count++;
-      items.add(new Ui.Item(group, quantity(count, "человек", "человека", "человек"), "groups",
-          () -> showPeople(group)));
+      items.add(new Ui
+              .Item(group, quantity(count, "человек", "человека", "человек"), "groups",
+                  () -> showPeople(group))
+              .group(group));
     }
     rows.replace(items);
   }
@@ -702,14 +750,16 @@ public final class MainActivity extends ComponentActivity {
   private void showHistory() {
     base("history");
     List<AttendanceStore.Session> sessions = app.store.sessions();
-    note(quantity(sessions.size(), "проверка", "проверки", "проверок"));
+    headerSubtitle.setText(quantity(sessions.size(), "проверка", "проверки", "проверок"));
     if (sessions.isEmpty()) {
       empty("history", "Пока ни одной проверки",
           "Начните проверку в журнале. Здесь останутся списки присутствующих и отсутствующих.");
       button("Открыть журнал", this::showHome);
       return;
     }
-    EditText query = search("Найти проверку");
+    LinearLayout controls = panel();
+    EditText query = search(controls, "Найти проверку");
+    ((LinearLayout.LayoutParams) query.getLayoutParams()).bottomMargin = 0;
     query.setId(R.id.history_search);
     Rows rows = list();
     Runnable update = () -> {
@@ -732,24 +782,30 @@ public final class MainActivity extends ComponentActivity {
         found = candidate;
     final AttendanceStore.Session session = found;
     base("report");
-    title(session.name);
-    note(String.join(" + ", session.groups) + "\n" + date(session.opened));
+    headerSubtitle.setText(date(session.opened));
     List<AttendanceStore.Entry> entries = app.store.entries(session.id);
+    LinearLayout summaryPanel = panel();
+    summaryPanel.addView(ui.bold(session.name, 18, INK));
+    ui.gap(summaryPanel, 8);
+    summaryPanel.addView(text(String.join(", ", session.groups), Ui.CAPTION, Ui.PURPLE));
+    ui.gap(summaryPanel, 12);
     LinearLayout summary = ui.row();
-    summary.addView(ui.bold(session.present + " / " + session.total, 30, INK));
-    TextView caption = text("присутствуют", 14, MUTED);
+    summary.addView(ui.bold(session.present + " / " + session.total, 24, INK));
+    TextView caption = text("присутствуют", Ui.CAPTION, MUTED);
     LinearLayout.LayoutParams captionLp = new LinearLayout.LayoutParams(-2, -2);
     captionLp.leftMargin = dp(12);
     summary.addView(caption, captionLp);
-    page.addView(summary);
-    gap(18);
-    if (session.closed == 0)
-      button("Открыть камеру", "camera", Ui.ACCENT, Ui.SURFACE, () -> openCamera(null, null, null));
-    else
-      note("Проверка завершена");
+    summaryPanel.addView(summary);
+    ui.gap(summaryPanel, 12);
+    if (session.closed != 0)
+      summaryPanel.addView(text("Проверка завершена", Ui.CAPTION, GREEN));
     LinearLayout bar = (LinearLayout) shell.getChildAt(0);
-    ImageButton more =
-        ui.iconButton("more", "Действия с проверкой", Color.TRANSPARENT, INK, () -> {});
+    if (session.closed == 0) {
+      ImageButton cameraAction = ui.iconButton("camera", "Открыть камеру",
+          Ui.tintSurface(Ui.ACCENT), Ui.ACCENT, () -> openCamera(null, null, null));
+      bar.addView(cameraAction);
+    }
+    ImageButton more = ui.iconButton("more", "Действия с проверкой", Ui.SURFACE, MUTED, () -> {});
     more.setId(R.id.report_more);
     more.setOnClickListener(view -> {
       PopupMenu menu = new PopupMenu(this, more);
@@ -773,6 +829,7 @@ public final class MainActivity extends ComponentActivity {
     });
     bar.addView(more);
     if (session.groups.size() > 1) {
+      ui.gap(summaryPanel, 8);
       for (String group : session.groups) {
         int total = 0, present = 0;
         for (AttendanceStore.Entry entry : entries)
@@ -781,15 +838,17 @@ public final class MainActivity extends ComponentActivity {
             if (entry.present > 0)
               present++;
           }
-        page.addView(text(group + "  ·  " + present + " / " + total, 13, MUTED));
-        gap(6);
+        summaryPanel.addView(
+            text(group + "  ·  " + present + " / " + total, Ui.CAPTION, Ui.PURPLE));
+        ui.gap(summaryPanel, 6);
       }
-      gap(10);
+      ui.gap(summaryPanel, 4);
     }
-    EditText query = search("Найти участника");
+    LinearLayout filtersPanel = panel();
+    EditText query = search(filtersPanel, "Найти участника");
     query.setId(R.id.report_search);
     LinearLayout filters = ui.column();
-    page.addView(filters);
+    filtersPanel.addView(filters);
     Rows rows = list();
     final String[] status = {"Все"};
     final Runnable[] update = {null}, rebuild = {null};
@@ -819,6 +878,7 @@ public final class MainActivity extends ComponentActivity {
                                 showReport(session);
                               })
                     : null)
+                .group(entry.group)
                 .badge(badge, entry.present > 0 ? GREEN : MUTED, Color.TRANSPARENT));
       }
       rows.replace(noResults(items));
@@ -839,20 +899,23 @@ public final class MainActivity extends ComponentActivity {
   }
   private void showSettings() {
     base("settings");
+    LinearLayout aboutPanel = panel();
     LinearLayout about = ui.row();
-    about.addView(ui.logo(42));
+    aboutPanel.addView(about);
+    about.addView(ui.logo(40));
     LinearLayout words = ui.column();
-    words.addView(ui.bold("Rollmark", 21, INK));
+    words.addView(ui.bold("Rollmark", 18, INK));
     ui.gap(words, 4);
     words.addView(text("Версия " + BuildConfig.VERSION_NAME, 13, MUTED));
     LinearLayout.LayoutParams aboutLp = new LinearLayout.LayoutParams(0, -2, 1);
     aboutLp.leftMargin = dp(12);
     about.addView(words, aboutLp);
-    page.addView(about);
+
     section("Данные");
+    List<Ui.Item> data = new ArrayList<>();
     java.io.File incoming = new java.io.File(getFilesDir(), "incoming-backup.json");
     if (incoming.exists())
-      inline(new Ui.Item("Перенести данные с ноутбука", "Заменить базу подготовленной копией",
+      data.add(new Ui.Item("Перенести данные с ноутбука", "Заменить базу подготовленной копией",
           "restore",
           ()
               -> confirm("Перенести данные с ноутбука?",
@@ -870,8 +933,8 @@ public final class MainActivity extends ComponentActivity {
                       runOnUiThread(() -> error(e));
                     }
                   }))));
-    inline(new Ui.Item("Сохранить резервную копию", "Люди, группы и история посещений", "download",
-        () -> app.worker.execute(() -> {
+    data.add(new Ui.Item("Сохранить резервную копию", "Люди, группы и история посещений",
+        "download", () -> app.worker.execute(() -> {
           try {
             String backup = app.store.backup();
             runOnUiThread(() -> export(backup, "application/json", "Rollmark-backup.json", 602));
@@ -879,17 +942,19 @@ public final class MainActivity extends ComponentActivity {
             runOnUiThread(() -> error(e));
           }
         })));
-    inline(new Ui.Item(
+    data.add(new Ui.Item(
         "Восстановить из копии", "Выбрать файл с сохранёнными данными", "restore", safe(() -> {
           Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
           intent.setType("application/json");
           intent.addCategory(Intent.CATEGORY_OPENABLE);
           startActivityForResult(intent, 603);
         })));
+    groupRows(data);
     gap(16);
     note("Люди и журнал хранятся на телефоне. Сохраните копию перед удалением приложения.");
     section("О приложении");
-    inline(new Ui.Item("Распознавание лица", "ArcFace ResNet50", "scan",
+    List<Ui.Item> details = new ArrayList<>();
+    details.add(new Ui.Item("Распознавание лица", "ArcFace ResNet50", "scan",
         ()
             -> new AlertDialog.Builder(this)
                 .setTitle("Распознавание лица")
@@ -901,13 +966,14 @@ public final class MainActivity extends ComponentActivity {
                         + "сохраняются. Проверка живости отключена."))
                 .setPositiveButton("Понятно", null)
                 .show()));
-    inline(new Ui.Item("Модели и лицензии", "Используемые компоненты", "file",
+    details.add(new Ui.Item("Модели и лицензии", "Используемые компоненты", "file",
         ()
             -> new AlertDialog.Builder(this)
                 .setTitle("Модели и зависимости")
                 .setMessage(readAssetNotice())
                 .setPositiveButton("Понятно", null)
                 .show()));
+    groupRows(details);
   }
   private String readAssetNotice() {
     try (InputStream in = getAssets().open("model_notice.txt")) {
@@ -988,15 +1054,15 @@ public final class MainActivity extends ComponentActivity {
     ((ViewGroup) page.getParent()).removeView(page);
     content.removeAllViews();
     content.addView(page, new FrameLayout.LayoutParams(-1, -1));
-    page.setPadding(dp(20), 0, dp(20), dp(16));
-    page.addView(ui.bold(name == null ? "Отметка посещаемости" : name, 23, Ui.DARK_TEXT));
+    page.setPadding(dp(Ui.PAGE), dp(8), dp(Ui.PAGE), dp(20));
+    page.addView(ui.bold(name == null ? "Отметка посещаемости" : name, 18, Ui.DARK_TEXT));
     gap(8);
     page.addView(text(
         name == null ? "Подойдите к камере по очереди" : group + " · в кадре только один человек",
-        14, Ui.DARK_MUTED));
+        Ui.CAPTION, Ui.DARK_MUTED));
     gap(16);
     FrameLayout stage = new FrameLayout(this);
-    stage.setBackground(shape(Ui.DARK_PREVIEW, 24));
+    stage.setBackground(shape(Ui.DARK_PREVIEW, Ui.RADIUS));
     stage.setClipToOutline(true);
     LinearLayout.LayoutParams stageLp = new LinearLayout.LayoutParams(-1, 0, 1);
     stageLp.bottomMargin = dp(16);
@@ -1010,16 +1076,16 @@ public final class MainActivity extends ComponentActivity {
     stage.addView(overlay, new FrameLayout.LayoutParams(-1, -1));
     cameraCount = ui.pill(name == null ? active.present + " / " + active.total + " отмечены"
                                        : "Снимки сохраняются автоматически",
-        Ui.DARK_TEXT, 0xdd303943);
+        Ui.DARK_TEXT, 0xeef5f8f8);
     cameraCount.setId(R.id.camera_count);
     FrameLayout.LayoutParams badgeLp =
         new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
     badgeLp.topMargin = dp(14);
     stage.addView(cameraCount, badgeLp);
     LinearLayout status = ui.column();
-    status.setPadding(dp(18), dp(16), dp(18), dp(16));
-    status.setBackground(shape(Ui.DARK_SURFACE, 20));
-    cameraResult = ui.bold("Подготовка камеры…", 19, Ui.DARK_TEXT);
+    status.setPadding(dp(12), dp(12), dp(12), dp(12));
+    status.setBackground(shape(Ui.DARK_SURFACE, Ui.RADIUS));
+    cameraResult = ui.bold("Подготовка камеры…", Ui.BODY, Ui.DARK_TEXT);
     status.addView(cameraResult);
     ui.gap(status, 8);
     cameraDetail =
@@ -1050,7 +1116,7 @@ public final class MainActivity extends ComponentActivity {
     View spacer = new View(this);
     actions.addView(spacer, new LinearLayout.LayoutParams(dp(10), 1));
     actions.addView(ui.button(name == null ? "Список" : "Отмена", name == null ? "people" : "close",
-                        Ui.DARK_ACCENT, Ui.DARK_BG,
+                        Ui.DARK_ACCENT, Ui.ON_ACCENT,
                         () -> {
                           if (name == null && active != null)
                             showReport(active);
@@ -1328,7 +1394,7 @@ public final class MainActivity extends ComponentActivity {
       super.onDraw(canvas);
       p.setStyle(Paint.Style.STROKE);
       p.setStrokeWidth(dp(2));
-      p.setColor(Ui.DARK_ACCENT);
+      p.setColor(Ui.OVERLAY_ACCENT);
       if (box == null || imageWidth == 0) {
         p.setAlpha(140);
         guide.set(getWidth() * .22f, getHeight() * .16f, getWidth() * .78f, getHeight() * .84f);
@@ -1348,7 +1414,7 @@ public final class MainActivity extends ComponentActivity {
       r.set(left + r.left * scale, top + r.top * scale, left + r.right * scale,
           top + r.bottom * scale);
       p.setAlpha(255);
-      p.setColor(success ? Ui.DARK_SUCCESS : Ui.DARK_ACCENT);
+      p.setColor(success ? Ui.OVERLAY_SUCCESS : Ui.OVERLAY_ACCENT);
       canvas.drawRoundRect(r, dp(18), dp(18), p);
       p.setStyle(Paint.Style.FILL);
       p.setTextSize(dp(12));

@@ -78,6 +78,45 @@ public final class DesignTest {
       assertEquals("Icon and caption must share a center", iconCenter, textCenter, 2f);
     }
   }
+  private Integer sharedHeaderHeight, sharedTitleLeft, sharedButtonHeight;
+  private Float sharedTitleSize;
+  private void assertSharedStyle() {
+    InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+      for (android.app.Activity current :
+          androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry.getInstance()
+              .getActivitiesInStage(androidx.test.runner.lifecycle.Stage.RESUMED)) {
+        if (!(current instanceof MainActivity))
+          continue;
+        MainActivity activity = (MainActivity) current;
+        // Keep only the temporary test window awake; leave device settings unchanged.
+        activity.getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        View header = activity.findViewById(R.id.screen_header);
+        TextView title = activity.findViewById(R.id.screen_title);
+        int[] position = new int[2];
+        title.getLocationOnScreen(position);
+        if (sharedHeaderHeight == null) {
+          sharedHeaderHeight = header.getHeight();
+          sharedTitleLeft = position[0];
+          sharedTitleSize = title.getTextSize();
+        }
+        assertEquals("Headers must keep the same height across screens",
+            sharedHeaderHeight.intValue(), header.getHeight());
+        assertEquals(
+            "Screen titles must share an alignment", sharedTitleLeft.intValue(), position[0]);
+        assertEquals(
+            "Screen titles must use one type scale", sharedTitleSize, title.getTextSize(), 0.1f);
+        for (int id : new int[] {R.id.home_action, R.id.add_person, R.id.add_group}) {
+          View button = activity.findViewById(id);
+          if (button == null || button.getHeight() == 0)
+            continue;
+          if (sharedButtonHeight == null)
+            sharedButtonHeight = button.getHeight();
+          assertEquals("Primary controls must have the same height", sharedButtonHeight.intValue(),
+              button.getHeight());
+        }
+      }
+    });
+  }
   private void screenshot(String name) throws Exception {
     InstrumentationRegistry.getInstrumentation().waitForIdleSync();
     Thread.sleep(250);
@@ -93,6 +132,7 @@ public final class DesignTest {
     assertNotNull("App must be visible before a screenshot", foreground);
     assertEquals("Never capture another app", target.getPackageName(),
         foreground.getPackageName().toString());
+    assertSharedStyle();
     Bitmap image = InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
     assertNotNull(image);
     File dir = new File(target.getFilesDir(), "design-preview");
@@ -195,7 +235,7 @@ public final class DesignTest {
           ((EditText) a.findViewById(R.id.history_search)).setText("Утренняя");
           assertEquals(1, rowCount(a));
           click(a.findViewById(R.id.nav_home));
-          click(text(root(a), "Посмотреть список"));
+          click(a.findViewById(R.id.home_report));
         });
         screenshot("07-report");
         scenario.onActivity(a -> {
@@ -228,7 +268,7 @@ public final class DesignTest {
             android.view.KeyEvent.KEYCODE_BACK);
         scenario.onActivity(a -> {
           click(a.findViewById(R.id.nav_home));
-          click(text(root(a), "Посмотреть список"));
+          click(a.findViewById(R.id.home_report));
         });
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
         scenario.onActivity(a -> click(a.findViewById(R.id.report_more)));
