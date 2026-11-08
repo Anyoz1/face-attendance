@@ -6,4 +6,6 @@
     <item name="people_search" type="id"/><item name="history_search" type="id"/>
     <item name="report_search" type="id"/><item name="camera_preview" type="id"/>
     <item name="camera_count" type="id"/><item name="registration_progress" type="id"/>
+    <item name="add_person" type="id"/><item name="add_group" type="id"/>
+    <item name="people_group_filter" type="id"/><item name="report_more" type="id"/>
 </resources>

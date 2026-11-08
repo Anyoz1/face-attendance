@@ -34,15 +34,6 @@ final class Ui {
     return new RippleDrawable(
         ColorStateList.valueOf(0x18466783), shape(color, radius), shape(0xffffffff, radius));
   }
-  GradientDrawable panel(int radius) {
-    GradientDrawable d = shape(SURFACE, radius);
-    d.setStroke(dp(1), LINE);
-    return d;
-  }
-  Drawable panelRipple(int radius) {
-    return new RippleDrawable(
-        ColorStateList.valueOf(0x18466783), panel(radius), shape(SURFACE, radius));
-  }
   TextView text(String value, int size, int color) {
     TextView t = new TextView(context);
     t.setText(value);
@@ -69,12 +60,6 @@ final class Ui {
     l.setGravity(Gravity.CENTER_VERTICAL);
     return l;
   }
-  LinearLayout card() {
-    LinearLayout l = column();
-    l.setPadding(dp(20), dp(20), dp(20), dp(20));
-    l.setBackground(panel(24));
-    return l;
-  }
   void gap(LinearLayout parent, int height) {
     View v = new View(context);
     parent.addView(v, new LinearLayout.LayoutParams(1, dp(height)));
@@ -94,12 +79,12 @@ final class Ui {
     b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
     b.setTextColor(ink);
     b.setStateListAnimator(null);
-    b.setMinHeight(dp(56));
-    b.setMinimumHeight(dp(56));
+    b.setMinHeight(dp(52));
+    b.setMinimumHeight(dp(52));
     b.setMinWidth(0);
     b.setGravity(Gravity.CENTER);
     b.setPadding(dp(icon == null ? 18 : 50), dp(12), dp(18), dp(12));
-    b.setBackground(ripple(fill, 18));
+    b.setBackground(ripple(fill, 10));
     b.setOnClickListener(v -> action.run());
     return b;
   }
@@ -128,7 +113,7 @@ final class Ui {
     ImageButton b = new ImageButton(context);
     b.setImageDrawable(icon(icon, ink));
     b.setContentDescription(description);
-    b.setBackground(ripple(fill, 18));
+    b.setBackground(ripple(fill, 10));
     b.setPadding(dp(13), dp(13), dp(13), dp(13));
     b.setOnClickListener(v -> action.run());
     b.setLayoutParams(new LinearLayout.LayoutParams(dp(48), dp(48)));
@@ -153,7 +138,7 @@ final class Ui {
       initials += words[words.length - 1].substring(0, 1);
     TextView t = bold(initials.toUpperCase(java.util.Locale.ROOT), 16, MUTED);
     t.setGravity(Gravity.CENTER);
-    t.setBackground(shape(BG, 16));
+    t.setBackground(shape(BG, 20));
     t.setLayoutParams(new LinearLayout.LayoutParams(dp(size), dp(size)));
     t.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
     return t;
@@ -176,62 +161,78 @@ final class Ui {
       return this;
     }
   }
+  /**
+   * A contact or register row. The content, rather than a card container, carries its hierarchy.
+   */
   final class ItemView extends FrameLayout {
     final LinearLayout body = row(), labels = column();
-    final ImageView glyph = new ImageView(context);
-    final TextView initials = bold("", 16, MUTED), title = bold("", 16, INK),
-                   subtitle = text("", 12, MUTED), badge = pill("", GREEN, GREEN_BG);
+    final ImageView glyph = new ImageView(context), arrow = new ImageView(context);
+    final TextView initials = bold("", 14, MUTED), title = bold("", 16, INK),
+                   subtitle = text("", 13, MUTED), badge = bold("", 12, GREEN);
     final FrameLayout leading = new FrameLayout(context);
-    final ImageView arrow = new ImageView(context);
+    final View separator = new View(context), labelGap = new View(context);
     ItemView() {
       super(context);
-      setPadding(dp(20), 0, dp(20), dp(8));
-      body.setPadding(dp(14), dp(15), dp(12), dp(15));
-      body.setBackground(panelRipple(20));
+      setPadding(dp(20), 0, dp(20), 0);
+      body.setMinimumHeight(dp(76));
+      body.setPadding(0, dp(14), 0, dp(14));
+      body.setBackground(ripple(SURFACE, 8));
       addView(body, new FrameLayout.LayoutParams(-1, -2));
-      leading.setBackground(shape(BG, 16));
-      body.addView(leading, new LinearLayout.LayoutParams(dp(46), dp(46)));
-      FrameLayout.LayoutParams centered =
-          new FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER);
-      leading.addView(glyph, centered);
+      body.addView(leading, new LinearLayout.LayoutParams(dp(36), dp(36)));
+      leading.addView(glyph, new FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER));
       initials.setGravity(Gravity.CENTER);
       leading.addView(initials, new FrameLayout.LayoutParams(-1, -1));
       labels.addView(title);
-      gap(labels, 5);
+      labels.addView(labelGap, new LinearLayout.LayoutParams(1, dp(5)));
       labels.addView(subtitle);
       LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, -2, 1);
       lp.leftMargin = dp(12);
-      lp.rightMargin = dp(6);
+      lp.rightMargin = dp(10);
       body.addView(labels, lp);
+      badge.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
       body.addView(badge);
-      arrow.setImageDrawable(icon("chevron", MUTED));
-      LinearLayout.LayoutParams a = new LinearLayout.LayoutParams(dp(18), dp(22));
-      a.leftMargin = dp(6);
-      body.addView(arrow, a);
+      LinearLayout.LayoutParams arrowLp = new LinearLayout.LayoutParams(dp(22), dp(22));
+      arrowLp.leftMargin = dp(6);
+      body.addView(arrow, arrowLp);
+      separator.setBackgroundColor(LINE);
+      addView(separator, new FrameLayout.LayoutParams(-1, dp(1), Gravity.BOTTOM));
       title.setMaxLines(2);
       subtitle.setMaxLines(2);
     }
     void bind(Item item) {
       title.setText(item.title);
       subtitle.setText(item.subtitle);
+      boolean hasSubtitle = item.subtitle != null && !item.subtitle.isEmpty();
+      subtitle.setVisibility(hasSubtitle ? VISIBLE : GONE);
+      labelGap.setVisibility(hasSubtitle ? VISIBLE : GONE);
+      boolean history = "history".equals(item.icon);
+      leading.setVisibility(history ? GONE : VISIBLE);
+      LinearLayout.LayoutParams labelsLp = (LinearLayout.LayoutParams) labels.getLayoutParams();
+      labelsLp.leftMargin = history ? 0 : dp(12);
+      labels.setLayoutParams(labelsLp);
+      FrameLayout.LayoutParams rule = (FrameLayout.LayoutParams) separator.getLayoutParams();
+      rule.leftMargin = history ? 0 : dp(48);
+      separator.setLayoutParams(rule);
       if (item.icon != null) {
+        leading.setBackground(null);
         glyph.setImageDrawable(icon(item.icon, MUTED));
         glyph.setVisibility(VISIBLE);
         initials.setVisibility(GONE);
       } else {
-        TextView sample = avatar(item.title, 46);
+        TextView sample = avatar(item.title, 36);
         initials.setText(sample.getText());
         initials.setTextColor(sample.getCurrentTextColor());
         leading.setBackground(sample.getBackground());
         glyph.setVisibility(GONE);
         initials.setVisibility(VISIBLE);
       }
-      if (item.icon != null)
-        leading.setBackground(shape(BG, 16));
       badge.setVisibility(item.badge == null ? GONE : VISIBLE);
       badge.setText(item.badge);
       badge.setTextColor(item.badgeColor);
-      badge.setBackground(shape(item.badgeFill, 16));
+      badge.setCompoundDrawablesRelativeWithIntrinsicBounds(
+          "Есть".equals(item.badge) ? icon("check", GREEN) : null, null, null, null);
+      badge.setCompoundDrawablePadding(dp(4));
+      arrow.setImageDrawable(icon(item.icon == null ? "more" : "chevron", MUTED));
       arrow.setVisibility(item.badge == null && item.action != null ? VISIBLE : GONE);
       body.setOnClickListener(v -> {
         if (item.action != null)
@@ -239,39 +240,6 @@ final class Ui {
       });
       body.setClickable(item.action != null);
       body.setFocusable(item.action != null);
-    }
-  }
-  final class Ring extends View {
-    final Paint paint = new Paint(3);
-    final RectF bounds = new RectF();
-    final Typeface ringTypeface = Typeface.create("sans-serif-medium", Typeface.NORMAL);
-    final int present, total;
-    final boolean dark;
-    Ring(int present, int total, boolean dark) {
-      super(context);
-      this.present = present;
-      this.total = total;
-      this.dark = dark;
-      setContentDescription(present + " из " + total + " отмечены");
-    }
-    @Override
-    protected void onDraw(Canvas canvas) {
-      float w = getWidth(), h = getHeight(), cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - dp(5);
-      paint.setStyle(Paint.Style.STROKE);
-      paint.setStrokeWidth(dp(6));
-      paint.setStrokeCap(Paint.Cap.ROUND);
-      paint.setColor(dark ? DARK_TRACK : LINE);
-      bounds.set(cx - r, cy - r, cx + r, cy + r);
-      canvas.drawOval(bounds, paint);
-      paint.setColor(dark ? DARK_ACCENT : ACCENT);
-      canvas.drawArc(bounds, -90, total == 0 ? 0 : 360f * present / total, false, paint);
-      paint.setStyle(Paint.Style.FILL);
-      paint.setTypeface(ringTypeface);
-      paint.setTextAlign(Paint.Align.CENTER);
-      paint.setTextSize(dp(20));
-      paint.setColor(dark ? DARK_TEXT : INK);
-      String value = total == 0 ? "0%" : Math.round(present * 100f / total) + "%";
-      canvas.drawText(value, cx, cy - (paint.ascent() + paint.descent()) / 2, paint);
     }
   }
   private static final class Glyph extends Drawable {

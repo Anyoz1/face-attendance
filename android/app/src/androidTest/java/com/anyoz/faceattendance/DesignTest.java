@@ -103,6 +103,29 @@ public final class DesignTest {
       image.recycle();
     }
   }
+  private android.view.accessibility.AccessibilityNodeInfo node(String label) throws Exception {
+    long until = android.os.SystemClock.elapsedRealtime() + 4000;
+    do {
+      android.view.accessibility.AccessibilityNodeInfo active =
+          InstrumentationRegistry.getInstrumentation().getUiAutomation().getRootInActiveWindow();
+      if (active != null && target.getPackageName().contentEquals(active.getPackageName())) {
+        for (android.view.accessibility.AccessibilityNodeInfo node :
+            active.findAccessibilityNodeInfosByText(label))
+          if (node.getText() != null && label.contentEquals(node.getText()))
+            return node;
+      }
+      Thread.sleep(50);
+    } while (android.os.SystemClock.elapsedRealtime() < until);
+    throw new AssertionError("Missing visible control: " + label);
+  }
+  private void tap(String label) throws Exception {
+    android.view.accessibility.AccessibilityNodeInfo control = node(label);
+    while (control != null && !control.isClickable()) control = control.getParent();
+    assertNotNull(control);
+    assertTrue(
+        control.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK));
+    InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+  }
   @Test
   public void navigationSearchGroupsAndReport() throws Exception {
     String filename = "design-" + AttendanceStore.id() + ".db";
@@ -151,10 +174,14 @@ public final class DesignTest {
           assertEquals(1, rowCount(a));
           query.setText("");
           assertEquals(70, rowCount(a));
-          click(text(root(a), "Команда Б"));
-          assertEquals(35, rowCount(a));
+          Spinner group = a.findViewById(R.id.people_group_filter);
+          for (int i = 0; i < group.getCount(); i++)
+            if ("Команда Б".equals(group.getItemAtPosition(i)))
+              group.setSelection(i);
         });
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync();
         screenshot("04-group-filter");
+        scenario.onActivity(a -> assertEquals(35, rowCount(a)));
         scenario.onActivity(a -> click(a.findViewById(R.id.nav_groups)));
         screenshot("05-groups");
         scenario.onActivity(a -> {
@@ -175,7 +202,10 @@ public final class DesignTest {
           assertEquals(70, rowCount(a));
           click(text(root(a), "Присутствуют"));
           assertEquals(24, rowCount(a));
-          click(text(root(a), "Ожидаем"));
+        });
+        screenshot("11-present");
+        scenario.onActivity(a -> {
+          click(text(root(a), "Без отметки"));
           assertEquals(46, rowCount(a));
           ((EditText) a.findViewById(R.id.report_search)).setText("Участник 70");
           assertEquals(1, rowCount(a));
@@ -189,11 +219,29 @@ public final class DesignTest {
           click(a.findViewById(R.id.nav_people));
         });
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
-        scenario.onActivity(a -> click(text(root(a), "Добавить человека")));
+        scenario.onActivity(a -> click(a.findViewById(R.id.add_person)));
         screenshot("09-enrollment-form");
         assertEquals(70, isolated.people().size());
         assertEquals(24, isolated.active().present);
         assertEquals(2, isolated.sessions().size());
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(
+            android.view.KeyEvent.KEYCODE_BACK);
+        scenario.onActivity(a -> {
+          click(a.findViewById(R.id.nav_home));
+          click(text(root(a), "Посмотреть список"));
+        });
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+        scenario.onActivity(a -> click(a.findViewById(R.id.report_more)));
+        node("Сохранить CSV");
+        tap("Завершить проверку");
+        tap("Отмена");
+        assertNotNull(isolated.active());
+        scenario.onActivity(a -> click(a.findViewById(R.id.report_more)));
+        tap("Завершить проверку");
+        tap("Продолжить");
+        assertNull(isolated.active());
+        assertEquals(2, isolated.sessions().size());
+        screenshot("12-ended");
       }
     } finally {
       app.store = original;
